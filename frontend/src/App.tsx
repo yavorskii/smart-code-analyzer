@@ -1,22 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  Code2,
   Play,
   RotateCcw,
-  Sparkles,
-  GitBranch,
-  AlertTriangle,
-  FileCode2,
-  CheckCircle2,
-  Copy,
+  FolderTree,
   Plus,
   Trash2,
-  ShieldAlert,
-  Layers,
-  FlaskConical,
-  History,
-  X,
+  Copy,
   Clock,
+  X,
+  Database,
+  Terminal,
 } from 'lucide-react';
 import { SAMPLE_JAVA_PROJECT } from './data/sampleProjects';
 import {
@@ -25,6 +18,8 @@ import {
   getAnalysisById,
   deleteAnalysis,
 } from './services/api';
+import { highlightJava } from './utils/highlighter';
+import { FileIcon } from './components/FileIcon';
 import type {
   AnalysisFocus,
   AnalysisHistoryItem,
@@ -49,6 +44,10 @@ export default function App() {
   const [historyList, setHistoryList] = useState<AnalysisHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
+
   const currentFile = files[activeFileIndex] || files[0];
 
   const fetchHistory = async () => {
@@ -57,7 +56,7 @@ export default function App() {
       const items = await getAnalysisHistory();
       setHistoryList(items);
     } catch {
-      // Backend may be starting or offline
+      // Backend may be starting
     } finally {
       setLoadingHistory(false);
     }
@@ -67,18 +66,59 @@ export default function App() {
     fetchHistory();
   }, []);
 
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    const { scrollTop, scrollLeft } = e.currentTarget;
+    if (highlightRef.current) {
+      highlightRef.current.scrollTop = scrollTop;
+      highlightRef.current.scrollLeft = scrollLeft;
+    }
+    if (gutterRef.current) {
+      gutterRef.current.scrollTop = scrollTop;
+    }
+  };
+
   const handleContentChange = (content: string) => {
     setFiles((prev) =>
       prev.map((f, i) => (i === activeFileIndex ? { ...f, content } : f))
     );
   };
 
+  const getFileExtension = (lang: ProgrammingLanguage) => {
+    switch (lang) {
+      case 'JAVA':
+        return '.java';
+      case 'PYTHON':
+        return '.py';
+      case 'JAVASCRIPT':
+        return '.js';
+      case 'TYPESCRIPT':
+        return '.ts';
+      default:
+        return '.java';
+    }
+  };
+
+  const getTemplateContent = (lang: ProgrammingLanguage, name: string) => {
+    switch (lang) {
+      case 'JAVA':
+        return `package ua.pnu.shop;\n\npublic class ${name} {\n    \n}\n`;
+      case 'PYTHON':
+        return `class ${name}:\n    def __init__(self):\n        pass\n`;
+      case 'JAVASCRIPT':
+      case 'TYPESCRIPT':
+        return `export class ${name} {\n    constructor() {\n        \n    }\n}\n`;
+      default:
+        return '';
+    }
+  };
+
   const handleAddFile = () => {
-    const ext = language === 'JAVA' ? '.java' : language === 'PYTHON' ? '.py' : '.ts';
-    const newName = `Component${files.length + 1}${ext}`;
+    const ext = getFileExtension(language);
+    const baseName = `Component${files.length + 1}`;
+    const newName = `${baseName}${ext}`;
     const newFile: CodeFile = {
       fileName: newName,
-      content: language === 'JAVA' ? `package ua.pnu.shop;\n\npublic class Component${files.length + 1} {\n    // Implementation\n}\n` : '',
+      content: getTemplateContent(language, baseName),
     };
     setFiles((prev) => [...prev, newFile]);
     setActiveFileIndex(files.length);
@@ -153,11 +193,8 @@ export default function App() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const getScoreClass = (score: number) => {
-    if (score >= 80) return 'score-good';
-    if (score >= 50) return 'score-warning';
-    return 'score-critical';
-  };
+  const lineCount = (currentFile?.content.match(/\n/g) || []).length + 1;
+  const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
 
   const formatDate = (isoString: string) => {
     const d = new Date(isoString);
@@ -170,248 +207,264 @@ export default function App() {
   };
 
   return (
-    <div className="app-container">
-      {/* Header */}
-      <header className="app-header">
-        <div className="brand-section">
-          <div className="brand-icon">
-            <Code2 size={24} />
-          </div>
-          <div>
-            <h1 className="brand-title">Smart Code Analyzer</h1>
-            <p className="brand-subtitle">
-              Система статичного мультифайлового аналізу та архітектурного аудиту
-            </p>
-          </div>
-          <span className="academic-badge">
-            ПНУ ім. В. Стефаника • 121 ІПЗ
-          </span>
+    <div className="jb-ide-container">
+      {/* JetBrains Main Toolbar */}
+      <header className="jb-toolbar">
+        <div className="jb-toolbar-left">
+          <span className="jb-logo-text">Smart Code Analyzer</span>
         </div>
 
-        <div className="header-actions">
-          <button
-            className="btn-secondary"
-            onClick={() => setHistoryOpen(true)}
-            title="Переглянути історію перевірок у БД"
+        <div className="jb-toolbar-center">
+          <span className="jb-control-label">Language:</span>
+          <select
+            className="jb-select"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as ProgrammingLanguage)}
           >
-            <History size={16} />
-            Історія аудитів
-            {historyList.length > 0 && (
-              <span className="badge-count" style={{ marginLeft: '4px' }}>
-                {historyList.length}
-              </span>
-            )}
+            <option value="JAVA">Java (Java 21 / Spring)</option>
+            <option value="PYTHON">Python</option>
+            <option value="TYPESCRIPT">TypeScript</option>
+            <option value="JAVASCRIPT">JavaScript</option>
+          </select>
+
+          <span className="jb-control-label" style={{ marginLeft: '8px' }}>Profile:</span>
+          <select
+            className="jb-select"
+            value={focus}
+            onChange={(e) => setFocus(e.target.value as AnalysisFocus)}
+          >
+            <option value="ARCHITECTURE">Architecture & Coupling</option>
+            <option value="CLEAN_CODE">Clean Code & SOLID</option>
+            <option value="MODERN_FEATURES">Modern Features</option>
+            <option value="PERFORMANCE">Performance</option>
+            <option value="SECURITY">Security</option>
+          </select>
+
+          <button
+            className="jb-run-btn"
+            onClick={handleRunAnalysis}
+            disabled={loading || files.length === 0}
+            title="Inspect Code (Run static analysis)"
+          >
+            <Play size={13} fill="#ffffff" />
+            {loading ? 'Inspecting...' : 'Inspect Code'}
+          </button>
+        </div>
+
+        <div className="jb-toolbar-right">
+          <button
+            className="jb-btn-tool"
+            onClick={() => setHistoryOpen(true)}
+            title="Database History (PostgreSQL)"
+          >
+            <Database size={13} />
+            <span>History</span>
+            {historyList.length > 0 && <span className="jb-badge">{historyList.length}</span>}
           </button>
 
-          <button className="btn-secondary" onClick={handleLoadSample}>
-            <RotateCcw size={16} />
-            Демо-проєкт
+          <button className="jb-btn-tool" onClick={handleLoadSample} title="Reset to Sample Demo Project">
+            <RotateCcw size={13} />
+            <span>Reset Demo</span>
           </button>
         </div>
       </header>
 
-      {/* Control Bar */}
-      <div className="control-bar">
-        <div className="controls-group">
-          <div className="control-item">
-            <label htmlFor="language-select">Мова:</label>
-            <select
-              id="language-select"
-              className="custom-select"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as ProgrammingLanguage)}
-            >
-              <option value="JAVA">Java (Spring Boot / Java 21)</option>
-              <option value="PYTHON">Python</option>
-              <option value="TYPESCRIPT">TypeScript</option>
-              <option value="JAVASCRIPT">JavaScript</option>
-            </select>
-          </div>
-
-          <div className="control-item">
-            <label htmlFor="focus-select">Фокус аудиту:</label>
-            <select
-              id="focus-select"
-              className="custom-select"
-              value={focus}
-              onChange={(e) => setFocus(e.target.value as AnalysisFocus)}
-            >
-              <option value="ARCHITECTURE">Архітектура та зв'язки класів</option>
-              <option value="CLEAN_CODE">Чистий код і SOLID</option>
-              <option value="MODERN_FEATURES">Сучасні фічі мови</option>
-              <option value="PERFORMANCE">Продуктивність</option>
-              <option value="SECURITY">Безпека</option>
-            </select>
-          </div>
-        </div>
-
-        <button
-          className="btn-primary"
-          onClick={handleRunAnalysis}
-          disabled={loading || files.length === 0}
-        >
-          {loading ? (
-            <>
-              <Sparkles className="animate-spin" size={16} />
-              Аналізуємо зв'язки...
-            </>
-          ) : (
-            <>
-              <Play size={16} />
-              Запустити мультифайловий аналіз
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Error alert */}
+      {/* Error Bar */}
       {error && (
-        <div style={{ padding: '0.75rem 1.75rem', background: 'rgba(244, 63, 94, 0.15)', borderBottom: '1px solid rgba(244, 63, 94, 0.3)', color: '#fb7185', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-          <AlertTriangle size={18} />
-          <span>Помилка: {error} (переконайтеся, що бекенд Spring Boot запущено на порті 8080)</span>
+        <div style={{ background: '#47262a', color: '#f75464', padding: '6px 12px', fontSize: '11px', borderBottom: '1px solid #6b333a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>Error: {error} (Check Spring Boot backend on port 8080)</span>
         </div>
       )}
 
-      {/* Main Workspace */}
-      <main className="workspace-grid">
-        {/* Editor Side */}
-        <section className="editor-panel">
-          <div className="tabs-bar">
+      {/* Main IDE Workspace */}
+      <div className="jb-workspace">
+        {/* Left: Project Explorer */}
+        <aside className="jb-project-panel">
+          <div className="jb-panel-titlebar">
+            <span>Project</span>
+            <FolderTree size={12} />
+          </div>
+
+          <div style={{ padding: '6px 8px', fontSize: '11px', color: '#868a91', borderBottom: '1px solid #2b2d30' }}>
+            {language === 'JAVA' ? 'src/main/java/ua/pnu/shop' : language === 'PYTHON' ? 'src/app' : 'src/components'}
+          </div>
+
+          <div className="jb-file-tree">
             {files.map((file, idx) => (
               <div
                 key={file.fileName + idx}
-                className={`file-tab ${idx === activeFileIndex ? 'active' : ''}`}
+                className={`jb-tree-item ${idx === activeFileIndex ? 'active' : ''}`}
                 onClick={() => setActiveFileIndex(idx)}
               >
-                <FileCode2 size={14} />
+                <FileIcon fileName={file.fileName} size={14} />
+                <span>{file.fileName}</span>
+                {files.length > 1 && (
+                  <button
+                    className="jb-tree-delete"
+                    onClick={(e) => handleDeleteFile(idx, e)}
+                    title="Delete file"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="jb-tree-actions">
+            <button className="jb-btn-add" onClick={handleAddFile}>
+              <Plus size={11} />
+              <span>New File</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* Center: Editor */}
+        <main className="jb-editor-panel">
+          <div className="jb-tab-bar">
+            {files.map((file, idx) => (
+              <div
+                key={file.fileName + idx}
+                className={`jb-tab ${idx === activeFileIndex ? 'active' : ''}`}
+                onClick={() => setActiveFileIndex(idx)}
+              >
+                <FileIcon fileName={file.fileName} size={13} />
                 <span>{file.fileName}</span>
                 {files.length > 1 && (
                   <span
-                    className="tab-close"
+                    className="jb-tab-close"
                     onClick={(e) => handleDeleteFile(idx, e)}
-                    title="Видалити файл"
                   >
-                    <Trash2 size={12} />
+                    ×
                   </span>
                 )}
               </div>
             ))}
-            <button className="btn-add-tab" onClick={handleAddFile} title="Додати новий файл">
-              <Plus size={14} />
-              Додати файл
-            </button>
           </div>
 
-          <div className="editor-wrapper">
-            <textarea
-              className="code-textarea"
-              value={currentFile?.content || ''}
-              onChange={(e) => handleContentChange(e.target.value)}
-              placeholder="Вставте код класу тут..."
-              spellCheck={false}
-            />
-          </div>
-
-          <div className="editor-footer">
-            <span>Файл: {currentFile?.fileName}</span>
-            <span>Рядків: {(currentFile?.content.match(/\n/g) || []).length + 1}</span>
-            <span>Символів: {currentFile?.content.length || 0}</span>
-          </div>
-        </section>
-
-        {/* Results Side */}
-        <section className="results-panel">
-          {!response ? (
-            <div className="empty-state">
-              <Layers className="empty-icon" />
-              <h2 className="empty-title">Готово до мультифайлового аудиту</h2>
-              <p className="empty-desc">
-                Натисніть <strong>«Запустити мультифайловий аналіз»</strong>, щоб виконати архітектурну перевірку взаємозв'язків між класами, знайти циклові залежності, антипатерни та зберегти звіт у базу даних.
-              </p>
+          <div className="jb-editor-body">
+            <div className="jb-gutter" ref={gutterRef}>
+              {lineNumbers.map((num) => (
+                <div key={num}>{num}</div>
+              ))}
             </div>
-          ) : (
-            <>
-              {/* Score Header */}
-              <div className="results-header">
-                <div className="score-banner">
-                  <div className={`score-badge-circle ${getScoreClass(response.qualityScore)}`}>
-                    <span className="score-value">{response.qualityScore}</span>
-                    <span className="score-label">Health</span>
-                  </div>
-                  <div>
-                    <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-                      Результати аналізу коду
-                    </h2>
-                    <p className="summary-text">{response.summary}</p>
-                  </div>
+
+            <div className="jb-editor-wrapper">
+              <pre
+                ref={highlightRef}
+                className="jb-highlight-layer"
+                dangerouslySetInnerHTML={{
+                  __html: highlightJava(currentFile?.content || '') + '\n',
+                }}
+              />
+              <textarea
+                ref={textareaRef}
+                className="jb-textarea"
+                value={currentFile?.content || ''}
+                onChange={(e) => handleContentChange(e.target.value)}
+                onScroll={handleScroll}
+                placeholder="// Write or paste Java code here..."
+                spellCheck={false}
+              />
+            </div>
+          </div>
+
+          <footer className="jb-statusbar">
+            <div>
+              <span>File: {currentFile?.fileName}</span>
+            </div>
+            <div className="jb-statusbar-right">
+              <span>UTF-8</span>
+              <span>4 spaces</span>
+              <span>Java 21</span>
+              <span>Lines: {lineCount}</span>
+            </div>
+          </footer>
+        </main>
+
+        {/* Right: Inspections / Problems Tool Window */}
+        <section className="jb-inspection-panel">
+          <div className="jb-tool-header">
+            <div className="jb-tool-tabs">
+              <button
+                className={`jb-tool-tab ${activeTab === 'insights' ? 'active' : ''}`}
+                onClick={() => setActiveTab('insights')}
+              >
+                <span>Architecture</span>
+                {response && <span className="jb-badge">{response.architectureInsights.length}</span>}
+              </button>
+              <button
+                className={`jb-tool-tab ${activeTab === 'issues' ? 'active' : ''}`}
+                onClick={() => setActiveTab('issues')}
+              >
+                <span>Problems</span>
+                {response && <span className="jb-badge">{response.issues.length}</span>}
+              </button>
+              <button
+                className={`jb-tool-tab ${activeTab === 'refactor' ? 'active' : ''}`}
+                onClick={() => setActiveTab('refactor')}
+              >
+                <span>Quick-Fixes</span>
+                {response && <span className="jb-badge">{response.refactoredFiles.length}</span>}
+              </button>
+              <button
+                className={`jb-tool-tab ${activeTab === 'tests' ? 'active' : ''}`}
+                onClick={() => setActiveTab('tests')}
+              >
+                <span>Tests</span>
+                {response && <span className="jb-badge">{response.generatedTests.length}</span>}
+              </button>
+            </div>
+
+            {response && (
+              <div className="jb-health-summary">
+                <span className={`jb-health-tag ${response.qualityScore >= 80 ? 'jb-health-good' : response.qualityScore >= 50 ? 'jb-health-warning' : 'jb-health-critical'}`}>
+                  Score: {response.qualityScore}/100
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="jb-inspection-content">
+            {!response ? (
+              <div className="jb-empty-box">
+                <Terminal size={32} />
+                <div style={{ fontWeight: 600, color: '#dfe1e5', marginBottom: '4px' }}>
+                  No Inspection Performed
+                </div>
+                <div style={{ fontSize: '11px', maxWidth: '280px' }}>
+                  Click <strong>«Inspect Code»</strong> in toolbar to run multi-file architectural analysis, detect circular dependencies, and view inspection warnings.
                 </div>
               </div>
+            ) : (
+              <>
+                {/* Summary Alert */}
+                <div style={{ padding: '6px 10px', background: '#26282b', border: '1px solid #393b40', borderRadius: '3px', fontSize: '11.5px', color: '#bcbec4' }}>
+                  {response.summary}
+                </div>
 
-              {/* Navigation Tabs */}
-              <div className="results-tabs">
-                <button
-                  className={`result-tab-btn ${activeTab === 'insights' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('insights')}
-                >
-                  <GitBranch size={16} />
-                  Архітектура зв'язків
-                  <span className="badge-count">{response.architectureInsights.length}</span>
-                </button>
-                <button
-                  className={`result-tab-btn ${activeTab === 'issues' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('issues')}
-                >
-                  <ShieldAlert size={16} />
-                  Дефекти коду
-                  <span className="badge-count">{response.issues.length}</span>
-                </button>
-                <button
-                  className={`result-tab-btn ${activeTab === 'refactor' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('refactor')}
-                >
-                  <Sparkles size={16} />
-                  Рефакторинг
-                  <span className="badge-count">{response.refactoredFiles.length}</span>
-                </button>
-                <button
-                  className={`result-tab-btn ${activeTab === 'tests' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('tests')}
-                >
-                  <FlaskConical size={16} />
-                  Автотести
-                  <span className="badge-count">{response.generatedTests.length}</span>
-                </button>
-              </div>
-
-              {/* Tab Contents */}
-              <div className="results-content">
+                {/* Tab: Architecture */}
                 {activeTab === 'insights' && (
                   <>
                     {response.architectureInsights.length === 0 ? (
-                      <div className="empty-state">
-                        <CheckCircle2 size={48} style={{ color: '#10b981', marginBottom: '1rem' }} />
-                        <h3 className="empty-title">Архітектурних конфліктів не виявлено</h3>
-                        <p className="empty-desc">Між класами немає циклових залежностей та жорсткої зв'язності.</p>
+                      <div className="jb-empty-box">
+                        <div style={{ color: '#59a869', fontWeight: 600 }}>No Architectural Cycles Detected</div>
+                        <div style={{ fontSize: '11px' }}>Clean component boundaries and loose coupling.</div>
                       </div>
                     ) : (
                       response.architectureInsights.map((insight, idx) => (
-                        <div
-                          key={idx}
-                          className={`card-insight ${insight.relationshipType === 'CIRCULAR_DEPENDENCY' ? 'circular' : 'coupling'}`}
-                        >
-                          <div className="insight-header">
-                            <span className="insight-type">
-                              {insight.relationshipType === 'CIRCULAR_DEPENDENCY'
-                                ? 'Циклічна залежність (Circular Dependency)'
-                                : 'Жорстка зв\'язність (Tight Coupling)'}
+                        <div key={idx} className="jb-card">
+                          <div className="jb-card-header">
+                            <span className={`jb-card-badge ${insight.relationshipType === 'CIRCULAR_DEPENDENCY' ? 'jb-badge-error' : 'jb-badge-warning'}`}>
+                              {insight.relationshipType === 'CIRCULAR_DEPENDENCY' ? 'Circular Dependency' : 'Tight Coupling'}
                             </span>
-                            <span className="insight-files">
+                            <span className="jb-card-loc">
                               {insight.sourceFile} ↔ {insight.targetFile}
                             </span>
                           </div>
-                          <p className="insight-desc">{insight.description}</p>
-                          <div className="insight-suggestion">
-                            <strong>Інженерна рекомендація:</strong> {insight.suggestion}
+                          <div className="jb-card-desc">{insight.description}</div>
+                          <div className="jb-card-fix">
+                            <strong>Architectural recommendation:</strong> {insight.suggestion}
                           </div>
                         </div>
                       ))
@@ -419,37 +472,29 @@ export default function App() {
                   </>
                 )}
 
+                {/* Tab: Problems / Code Smells */}
                 {activeTab === 'issues' && (
                   <>
                     {response.issues.length === 0 ? (
-                      <div className="empty-state">
-                        <CheckCircle2 size={48} style={{ color: '#10b981', marginBottom: '1rem' }} />
-                        <h3 className="empty-title">Проблем не виявлено</h3>
-                        <p className="empty-desc">Код відповідає всім перевіреним нормам якості.</p>
+                      <div className="jb-empty-box">
+                        <div style={{ color: '#59a869', fontWeight: 600 }}>0 Problems Detected</div>
+                        <div style={{ fontSize: '11px' }}>No code smell or design rule violations found.</div>
                       </div>
                     ) : (
                       response.issues.map((issue) => (
-                        <div key={issue.id} className="issue-card">
-                          <div className="issue-header">
-                            <span
-                              className={`tag-severity ${
-                                issue.severity === 'CRITICAL'
-                                  ? 'tag-critical'
-                                  : issue.severity === 'WARNING'
-                                  ? 'tag-warning'
-                                  : 'tag-info'
-                              }`}
-                            >
+                        <div key={issue.id} className="jb-card">
+                          <div className="jb-card-header">
+                            <span className={`jb-card-badge ${issue.severity === 'CRITICAL' ? 'jb-badge-error' : issue.severity === 'WARNING' ? 'jb-badge-warning' : 'jb-badge-info'}`}>
                               {issue.severity}
                             </span>
-                            <span className="issue-location">
-                              {issue.fileName}{issue.line ? ` : рядок ${issue.line}` : ''}
+                            <span className="jb-card-loc">
+                              {issue.fileName}{issue.line ? `:${issue.line}` : ''}
                             </span>
                           </div>
-                          <h4 className="issue-title">{issue.title}</h4>
-                          <p className="issue-desc">{issue.description}</p>
-                          <div className="issue-rec">
-                            <strong>Як виправити:</strong> {issue.recommendation}
+                          <div className="jb-card-title">{issue.title}</div>
+                          <div className="jb-card-desc">{issue.description}</div>
+                          <div className="jb-card-fix">
+                            <strong>Fix:</strong> {issue.recommendation}
                           </div>
                         </div>
                       ))
@@ -457,136 +502,137 @@ export default function App() {
                   </>
                 )}
 
+                {/* Tab: Refactoring */}
                 {activeTab === 'refactor' && (
                   <>
                     {response.refactoredFiles.length === 0 ? (
-                      <div className="empty-state">
-                        <CheckCircle2 size={48} style={{ color: '#10b981', marginBottom: '1rem' }} />
-                        <h3 className="empty-title">Рефакторинг не потрібен</h3>
-                        <p className="empty-desc">Усі файли вже оптимізовані.</p>
+                      <div className="jb-empty-box">
+                        <div style={{ color: '#59a869', fontWeight: 600 }}>No Refactoring Required</div>
+                        <div style={{ fontSize: '11px' }}>All classes are properly structured.</div>
                       </div>
                     ) : (
                       response.refactoredFiles.map((file, idx) => (
-                        <div key={idx} className="code-viewer-card">
-                          <div className="code-viewer-header">
-                            <span className="code-viewer-title">{file.fileName} (Покращена версія)</span>
+                        <div key={idx} className="jb-code-block">
+                          <div className="jb-code-header">
+                            <span>{file.fileName} (Refactored)</span>
                             <button
-                              className="btn-secondary"
+                              className="jb-btn-tool"
                               onClick={() => handleCopy(file.refactoredContent, `refactor-${idx}`)}
                             >
-                              <Copy size={14} />
-                              {copiedIndex === `refactor-${idx}` ? 'Скопійовано!' : 'Копіювати код'}
+                              <Copy size={11} />
+                              <span>{copiedIndex === `refactor-${idx}` ? 'Copied' : 'Copy'}</span>
                             </button>
                           </div>
                           {file.changesSummary.length > 0 && (
-                            <div className="changes-list">
-                              <strong>Внесені покращення:</strong>
-                              <ul style={{ paddingLeft: '1.25rem', marginTop: '0.25rem' }}>
-                                {file.changesSummary.map((change, cIdx) => (
-                                  <li key={cIdx}>{change}</li>
+                            <div style={{ padding: '6px 10px', background: '#202226', borderBottom: '1px solid #323438', fontSize: '11px', color: '#8da1b9' }}>
+                              <strong>Applied changes:</strong>
+                              <ul style={{ paddingLeft: '14px', marginTop: '2px' }}>
+                                {file.changesSummary.map((c, cIdx) => (
+                                  <li key={cIdx}>{c}</li>
                                 ))}
                               </ul>
                             </div>
                           )}
-                          <pre className="code-pre">{file.refactoredContent}</pre>
+                          <pre
+                            className="jb-code-pre"
+                            dangerouslySetInnerHTML={{ __html: highlightJava(file.refactoredContent) }}
+                          />
                         </div>
                       ))
                     )}
                   </>
                 )}
 
+                {/* Tab: Generated Tests */}
                 {activeTab === 'tests' && (
                   <>
                     {response.generatedTests.length === 0 ? (
-                      <div className="empty-state">
-                        <FlaskConical size={48} style={{ color: '#60a5fa', marginBottom: '1rem' }} />
-                        <h3 className="empty-title">Тести не згенеровано</h3>
-                        <p className="empty-desc">Додайте сервісний клас (наприклад OrderService), щоб отримати каркас юніт-тестів.</p>
+                      <div className="jb-empty-box">
+                        <div style={{ color: '#868a91', fontWeight: 600 }}>No Unit Tests Generated</div>
+                        <div style={{ fontSize: '11px' }}>Add service classes (e.g. OrderService) to generate tests.</div>
                       </div>
                     ) : (
                       response.generatedTests.map((test, idx) => (
-                        <div key={idx} className="code-viewer-card">
-                          <div className="code-viewer-header">
-                            <div>
-                              <span className="code-viewer-title">{test.testFileName}</span>
-                              <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.5rem' }}>
-                                (для {test.targetFile} • {test.framework})
-                              </span>
-                            </div>
+                        <div key={idx} className="jb-code-block">
+                          <div className="jb-code-header">
+                            <span>{test.testFileName} ({test.framework})</span>
                             <button
-                              className="btn-secondary"
+                              className="jb-btn-tool"
                               onClick={() => handleCopy(test.testCode, `test-${idx}`)}
                             >
-                              <Copy size={14} />
-                              {copiedIndex === `test-${idx}` ? 'Скопійовано!' : 'Копіювати тест'}
+                              <Copy size={11} />
+                              <span>{copiedIndex === `test-${idx}` ? 'Copied' : 'Copy'}</span>
                             </button>
                           </div>
-                          <pre className="code-pre">{test.testCode}</pre>
+                          <pre
+                            className="jb-code-pre"
+                            dangerouslySetInnerHTML={{ __html: highlightJava(test.testCode) }}
+                          />
                         </div>
                       ))
                     )}
                   </>
                 )}
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </section>
-      </main>
+      </div>
 
-      {/* History Drawer Modal */}
+      {/* History Drawer Modal (JetBrains Git / Local History style) */}
       {historyOpen && (
-        <div className="modal-overlay" onClick={() => setHistoryOpen(false)}>
-          <div className="history-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="history-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Clock size={18} color="#60a5fa" />
-                <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Історія аудитів (PostgreSQL)</h3>
+        <div className="jb-modal-overlay" onClick={() => setHistoryOpen(false)}>
+          <div className="jb-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="jb-drawer-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={13} color="#3574f0" />
+                <span>Inspection History (PostgreSQL)</span>
               </div>
               <button
-                className="btn-secondary"
-                style={{ padding: '4px', borderRadius: '50%' }}
+                className="jb-btn-tool"
+                style={{ padding: '2px 4px' }}
                 onClick={() => setHistoryOpen(false)}
               >
-                <X size={18} />
+                <X size={14} />
               </button>
             </div>
 
-            <div className="history-list">
+            <div className="jb-drawer-list">
               {loadingHistory ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>
-                  Завантаження записів з бази...
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#868a91' }}>
+                  Loading history from PostgreSQL...
                 </div>
               ) : historyList.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#6b7280' }}>
-                  Записів у базі поки що немає. Запустіть аналіз, і він з'явиться тут автоматично.
+                <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#6f737a' }}>
+                  No past audit records in database.
                 </div>
               ) : (
                 historyList.map((item) => (
                   <div
                     key={item.id}
-                    className="history-card"
+                    className="jb-history-row"
                     onClick={() => handleSelectHistoryItem(item.id)}
                   >
-                    <div className="history-card-top">
-                      <span className={`history-score-badge ${getScoreClass(item.qualityScore)}`}>
-                        {item.qualityScore}/100 Health
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className={`jb-card-badge ${item.qualityScore >= 80 ? 'jb-badge-info' : item.qualityScore >= 50 ? 'jb-badge-warning' : 'jb-badge-error'}`}>
+                        Score: {item.qualityScore}/100
                       </span>
-                      <span className="history-date">{formatDate(item.createdAt)}</span>
+                      <span style={{ fontSize: '11px', color: '#6f737a' }}>{formatDate(item.createdAt)}</span>
                     </div>
 
-                    <p className="history-card-summary">{item.summary}</p>
+                    <div style={{ fontSize: '11.5px', color: '#c4c7cf', lineHeight: '1.3' }}>
+                      {item.summary}
+                    </div>
 
-                    <div className="history-card-footer">
-                      <span>
-                        {item.language} • {item.filesCount} файлів • {item.issuesCount} проблем
-                      </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10.5px', color: '#868a91', borderTop: '1px solid #2e3034', paddingTop: '4px', marginTop: '2px' }}>
+                      <span>{item.language} • {item.filesCount} files • {item.issuesCount} problems</span>
                       <button
-                        className="tab-close"
-                        style={{ padding: '3px' }}
-                        title="Видалити запис з БД"
+                        className="jb-tree-delete"
+                        style={{ opacity: 1, padding: '2px' }}
+                        title="Delete audit from DB"
                         onClick={(e) => handleDeleteHistoryItem(item.id, e)}
                       >
-                        <Trash2 size={13} color="#f43f5e" />
+                        <Trash2 size={11} color="#f75464" />
                       </button>
                     </div>
                   </div>
