@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import ua.pnu.smartcode.dto.AnalysisHistoryItemDto;
 import ua.pnu.smartcode.dto.AnalysisRequestDto;
 import ua.pnu.smartcode.dto.AnalysisResponseDto;
 import ua.pnu.smartcode.dto.CodeFileDto;
@@ -14,10 +15,15 @@ import ua.pnu.smartcode.model.AnalysisFocus;
 import ua.pnu.smartcode.model.ProgrammingLanguage;
 import ua.pnu.smartcode.service.AnalysisService;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -78,5 +84,40 @@ class AnalysisControllerTest {
                         .content(invalidJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Bad Request"));
+    }
+
+    @Test
+    void shouldReturnHistoryList() throws Exception {
+        UUID recordId = UUID.randomUUID();
+        AnalysisHistoryItemDto item = new AnalysisHistoryItemDto(
+                recordId,
+                ProgrammingLanguage.JAVA,
+                AnalysisFocus.ARCHITECTURE,
+                88,
+                "Sample summary",
+                2,
+                3,
+                1,
+                1,
+                1,
+                1,
+                Instant.now()
+        );
+
+        when(analysisService.getHistory()).thenReturn(List.of(item));
+
+        mockMvc.perform(get("/api/v1/analyze/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(recordId.toString()))
+                .andExpect(jsonPath("$[0].qualityScore").value(88));
+    }
+
+    @Test
+    void shouldDeleteHistoryItem() throws Exception {
+        UUID recordId = UUID.randomUUID();
+        doNothing().when(analysisService).deleteById(recordId);
+
+        mockMvc.perform(delete("/api/v1/analyze/history/" + recordId))
+                .andExpect(status().isNoContent());
     }
 }

@@ -35,6 +35,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
+    @ExceptionHandler(RecordNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleRecordNotFound(RecordNotFoundException ex) {
+        ErrorResponseDto response = new ErrorResponseDto(
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
     @ExceptionHandler(UnsupportedLanguageException.class)
     public ResponseEntity<ErrorResponseDto> handleUnsupportedLanguage(UnsupportedLanguageException ex) {
         ErrorResponseDto response = new ErrorResponseDto(

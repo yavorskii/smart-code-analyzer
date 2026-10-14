@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Code2,
   Play,
@@ -14,11 +14,20 @@ import {
   ShieldAlert,
   Layers,
   FlaskConical,
+  History,
+  X,
+  Clock,
 } from 'lucide-react';
 import { SAMPLE_JAVA_PROJECT } from './data/sampleProjects';
-import { analyzeCode } from './services/api';
+import {
+  analyzeCode,
+  getAnalysisHistory,
+  getAnalysisById,
+  deleteAnalysis,
+} from './services/api';
 import type {
   AnalysisFocus,
+  AnalysisHistoryItem,
   AnalysisResponse,
   CodeFile,
   ProgrammingLanguage,
@@ -36,7 +45,27 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'insights' | 'issues' | 'refactor' | 'tests'>('insights');
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
 
+  const [historyOpen, setHistoryOpen] = useState<boolean>(false);
+  const [historyList, setHistoryList] = useState<AnalysisHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+
   const currentFile = files[activeFileIndex] || files[0];
+
+  const fetchHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const items = await getAnalysisHistory();
+      setHistoryList(items);
+    } catch {
+      // Backend may be starting or offline
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const handleContentChange = (content: string) => {
     setFiles((prev) =>
@@ -82,11 +111,39 @@ export default function App() {
       });
       setResponse(res);
       setActiveTab('insights');
+      fetchHistory();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Analysis failed';
       setError(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectHistoryItem = async (id: string) => {
+    try {
+      setLoading(true);
+      const pastReport = await getAnalysisById(id);
+      setResponse(pastReport);
+      setHistoryOpen(false);
+      setActiveTab('insights');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load past audit');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteHistoryItem = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteAnalysis(id);
+      setHistoryList((prev) => prev.filter((item) => item.id !== id));
+      if (response?.id === id) {
+        setResponse(null);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete record');
     }
   };
 
@@ -100,6 +157,16 @@ export default function App() {
     if (score >= 80) return 'score-good';
     if (score >= 50) return 'score-warning';
     return 'score-critical';
+  };
+
+  const formatDate = (isoString: string) => {
+    const d = new Date(isoString);
+    return d.toLocaleString('uk-UA', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -122,9 +189,23 @@ export default function App() {
         </div>
 
         <div className="header-actions">
+          <button
+            className="btn-secondary"
+            onClick={() => setHistoryOpen(true)}
+            title="Переглянути історію перевірок у БД"
+          >
+            <History size={16} />
+            Історія аудитів
+            {historyList.length > 0 && (
+              <span className="badge-count" style={{ marginLeft: '4px' }}>
+                {historyList.length}
+              </span>
+            )}
+          </button>
+
           <button className="btn-secondary" onClick={handleLoadSample}>
             <RotateCcw size={16} />
-            Завантажити демо-проєкт
+            Демо-проєкт
           </button>
         </div>
       </header>
@@ -245,7 +326,7 @@ export default function App() {
               <Layers className="empty-icon" />
               <h2 className="empty-title">Готово до мультифайлового аудиту</h2>
               <p className="empty-desc">
-                Натисніть <strong>«Запустити мультифайловий аналіз»</strong>, щоб виконати архітектурну перевірку взаємозв'язків між класами, знайти циклові залежності, антипатерни та згенерувати рекомендації рефакторингу.
+                Натисніть <strong>«Запустити мультифайловий аналіз»</strong>, щоб виконати архітектурну перевірку взаємозв'язків між класами, знайти циклові залежності, антипатерни та зберегти звіт у базу даних.
               </p>
             </div>
           ) : (
@@ -451,6 +532,70 @@ export default function App() {
           )}
         </section>
       </main>
+
+      {/* History Drawer Modal */}
+      {historyOpen && (
+        <div className="modal-overlay" onClick={() => setHistoryOpen(false)}>
+          <div className="history-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="history-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Clock size={18} color="#60a5fa" />
+                <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Історія аудитів (PostgreSQL)</h3>
+              </div>
+              <button
+                className="btn-secondary"
+                style={{ padding: '4px', borderRadius: '50%' }}
+                onClick={() => setHistoryOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="history-list">
+              {loadingHistory ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>
+                  Завантаження записів з бази...
+                </div>
+              ) : historyList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#6b7280' }}>
+                  Записів у базі поки що немає. Запустіть аналіз, і він з'явиться тут автоматично.
+                </div>
+              ) : (
+                historyList.map((item) => (
+                  <div
+                    key={item.id}
+                    className="history-card"
+                    onClick={() => handleSelectHistoryItem(item.id)}
+                  >
+                    <div className="history-card-top">
+                      <span className={`history-score-badge ${getScoreClass(item.qualityScore)}`}>
+                        {item.qualityScore}/100 Health
+                      </span>
+                      <span className="history-date">{formatDate(item.createdAt)}</span>
+                    </div>
+
+                    <p className="history-card-summary">{item.summary}</p>
+
+                    <div className="history-card-footer">
+                      <span>
+                        {item.language} • {item.filesCount} файлів • {item.issuesCount} проблем
+                      </span>
+                      <button
+                        className="tab-close"
+                        style={{ padding: '3px' }}
+                        title="Видалити запис з БД"
+                        onClick={(e) => handleDeleteHistoryItem(item.id, e)}
+                      >
+                        <Trash2 size={13} color="#f43f5e" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

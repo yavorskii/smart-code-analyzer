@@ -17,3 +17,28 @@ export async function analyzeCode(request: AnalysisRequest): Promise<AnalysisRes
 
   return response.json();
 }
+
+export async function getAnalysisHistory(): Promise<import('../types/analysis').AnalysisHistoryItem[]> {
+  const response = await fetch('/api/v1/analyze/history');
+  if (!response.ok) {
+    throw new Error('Failed to fetch analysis history');
+  }
+  return response.json();
+}
+
+export async function getAnalysisById(id: string): Promise<AnalysisResponse> {
+  const response = await fetch(`/api/v1/analyze/history/${id}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch analysis details');
+  }
+  return response.json();
+}
+
+export async function deleteAnalysis(id: string): Promise<void> {
+  const response = await fetch(`/api/v1/analyze/history/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete analysis record');
+  }
+}

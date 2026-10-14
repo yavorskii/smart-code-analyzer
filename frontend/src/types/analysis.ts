@@ -59,3 +59,19 @@ export interface AnalysisRequest {
   focus: AnalysisFocus;
   files: CodeFile[];
 }
+
+export interface AnalysisHistoryItem {
+  id: string;
+  language: ProgrammingLanguage;
+  focus: AnalysisFocus;
+  qualityScore: number;
+  summary: string;
+  filesCount: number;
+  issuesCount: number;
+  criticalCount: number;
+  warningCount: number;
+  infoCount: number;
+  insightsCount: number;
+  createdAt: string;
+}
+
