@@ -1,4 +1,4 @@
-import type { CodeFile } from '../types/analysis';
+import type { CodeFile, ProgrammingLanguage } from '../types/analysis';
 
 export const SAMPLE_JAVA_PROJECT: CodeFile[] = [
   {
@@ -95,3 +95,154 @@ public class CustomerDto {
 `,
   },
 ];
+
+export const SAMPLE_PYTHON_PROJECT: CodeFile[] = [
+  {
+    fileName: 'order_service.py',
+    content: `from payment_service import PaymentService
+
+class OrderService:
+    def __init__(self):
+        # Direct instantiation causes tight coupling
+        self.payment = PaymentService()
+
+    def processOrder(self, order_id: str, items=[]):
+        # Mutable default argument bug & camelCase PEP8 violation
+        print("Processing order: " + order_id)
+        return self.payment.execute_payment(order_id, items)
+
+    def on_complete(self, order_id: str):
+        print("Order finished: " + order_id)
+`,
+  },
+  {
+    fileName: 'payment_service.py',
+    content: `from order_service import OrderService
+
+class PaymentService:
+    def __init__(self):
+        # Circular import relationship with order_service
+        self.orders = OrderService()
+
+    def execute_payment(self, order_id: str, items):
+        try:
+            print("Processing transaction for: " + order_id)
+            self.orders.on_complete(order_id)
+            return True
+        except:
+            # Bare except masks system interrupts and bugs
+            print("Payment execution failed")
+            return False
+`,
+  },
+  {
+    fileName: 'customer.py',
+    content: `class customer:
+    def __init__(self, name: str, email: str):
+        self.name = name
+        self.email = email
+`,
+  },
+];
+
+export const SAMPLE_TYPESCRIPT_PROJECT: CodeFile[] = [
+  {
+    fileName: 'OrderService.ts',
+    content: `import { PaymentService } from './PaymentService';
+
+export class OrderService {
+    // Direct instantiation breaks Dependency Inversion
+    private paymentService = new PaymentService();
+
+    public processOrder(orderId: string, metadata: any) {
+        // Deprecated 'var' and loose equality
+        var isPriority = metadata.priority == true;
+        
+        console.log("Processing order " + orderId);
+        return this.paymentService.charge(orderId, isPriority);
+    }
+
+    public handleSuccess(orderId: string) {
+        console.log("Order confirmed: " + orderId);
+    }
+}
+`,
+  },
+  {
+    fileName: 'PaymentService.ts',
+    content: `import { OrderService } from './OrderService';
+
+export class PaymentService {
+    // Circular dependency with OrderService
+    private orderService: OrderService | null = null;
+
+    public charge(orderId: string, priority: boolean): boolean {
+        console.log("Charging order: " + orderId);
+        if (this.orderService) {
+            this.orderService.handleSuccess(orderId);
+        }
+        return true;
+    }
+}
+`,
+  },
+  {
+    fileName: 'CustomerDto.ts',
+    content: `export interface CustomerDto {
+    id: string;
+    name: string;
+    email: string;
+}
+`,
+  },
+];
+
+export const SAMPLE_JAVASCRIPT_PROJECT: CodeFile[] = [
+  {
+    fileName: 'OrderService.js',
+    content: `const PaymentService = require('./PaymentService');
+
+class OrderService {
+    constructor() {
+        this.payment = new PaymentService();
+    }
+
+    process(orderId, amount) {
+        var status = "pending";
+        if (amount == 0) {
+            console.log("Empty amount warning");
+        }
+        return this.payment.charge(orderId, amount);
+    }
+}
+
+module.exports = OrderService;
+`,
+  },
+  {
+    fileName: 'PaymentService.js',
+    content: `class PaymentService {
+    charge(orderId, amount) {
+        console.log("Charging " + orderId + " with amount " + amount);
+        return true;
+    }
+}
+
+module.exports = PaymentService;
+`,
+  },
+];
+
+export function getSampleProject(language: ProgrammingLanguage): CodeFile[] {
+  switch (language) {
+    case 'PYTHON':
+      return SAMPLE_PYTHON_PROJECT;
+    case 'TYPESCRIPT':
+      return SAMPLE_TYPESCRIPT_PROJECT;
+    case 'JAVASCRIPT':
+      return SAMPLE_JAVASCRIPT_PROJECT;
+    case 'JAVA':
+    default:
+      return SAMPLE_JAVA_PROJECT;
+  }
+}

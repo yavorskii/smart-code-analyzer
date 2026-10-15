@@ -11,14 +11,14 @@ import {
   Database,
   Terminal,
 } from 'lucide-react';
-import { SAMPLE_JAVA_PROJECT } from './data/sampleProjects';
+import { getSampleProject } from './data/sampleProjects';
 import {
   analyzeCode,
   getAnalysisHistory,
   getAnalysisById,
   deleteAnalysis,
 } from './services/api';
-import { highlightJava } from './utils/highlighter';
+import { highlightCode } from './utils/highlighter';
 import { FileIcon } from './components/FileIcon';
 import type {
   AnalysisFocus,
@@ -30,7 +30,7 @@ import type {
 import './App.css';
 
 export default function App() {
-  const [files, setFiles] = useState<CodeFile[]>(SAMPLE_JAVA_PROJECT);
+  const [files, setFiles] = useState<CodeFile[]>(() => getSampleProject('JAVA'));
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [language, setLanguage] = useState<ProgrammingLanguage>('JAVA');
   const [focus, setFocus] = useState<AnalysisFocus>('ARCHITECTURE');
@@ -132,10 +132,17 @@ export default function App() {
     setActiveFileIndex(Math.max(0, index - 1));
   };
 
-  const handleLoadSample = () => {
-    setFiles(SAMPLE_JAVA_PROJECT);
+  const handleLanguageChange = (newLang: ProgrammingLanguage) => {
+    setLanguage(newLang);
+    setFiles(getSampleProject(newLang));
     setActiveFileIndex(0);
-    setLanguage('JAVA');
+    setResponse(null);
+    setError(null);
+  };
+
+  const handleLoadSample = () => {
+    setFiles(getSampleProject(language));
+    setActiveFileIndex(0);
     setResponse(null);
     setError(null);
   };
@@ -219,7 +226,7 @@ export default function App() {
           <select
             className="jb-select"
             value={language}
-            onChange={(e) => setLanguage(e.target.value as ProgrammingLanguage)}
+            onChange={(e) => handleLanguageChange(e.target.value as ProgrammingLanguage)}
           >
             <option value="JAVA">Java (Java 21 / Spring)</option>
             <option value="PYTHON">Python</option>
@@ -286,7 +293,7 @@ export default function App() {
           </div>
 
           <div style={{ padding: '6px 8px', fontSize: '11px', color: '#868a91', borderBottom: '1px solid #2b2d30' }}>
-            {language === 'JAVA' ? 'src/main/java/ua/pnu/shop' : language === 'PYTHON' ? 'src/app' : 'src/components'}
+            {language === 'JAVA' ? 'src/main/java/ua/pnu/shop' : language === 'PYTHON' ? 'src/app' : language === 'TYPESCRIPT' ? 'src/services' : 'src/modules'}
           </div>
 
           <div className="jb-file-tree">
@@ -354,7 +361,7 @@ export default function App() {
                 ref={highlightRef}
                 className="jb-highlight-layer"
                 dangerouslySetInnerHTML={{
-                  __html: highlightJava(currentFile?.content || '') + '\n',
+                  __html: highlightCode(currentFile?.content || '', currentFile?.fileName) + '\n',
                 }}
               />
               <textarea
@@ -363,7 +370,7 @@ export default function App() {
                 value={currentFile?.content || ''}
                 onChange={(e) => handleContentChange(e.target.value)}
                 onScroll={handleScroll}
-                placeholder="// Write or paste Java code here..."
+                placeholder="// Write or paste code here..."
                 spellCheck={false}
               />
             </div>
@@ -535,7 +542,7 @@ export default function App() {
                           )}
                           <pre
                             className="jb-code-pre"
-                            dangerouslySetInnerHTML={{ __html: highlightJava(file.refactoredContent) }}
+                            dangerouslySetInnerHTML={{ __html: highlightCode(file.refactoredContent, file.fileName) }}
                           />
                         </div>
                       ))
@@ -566,7 +573,7 @@ export default function App() {
                           </div>
                           <pre
                             className="jb-code-pre"
-                            dangerouslySetInnerHTML={{ __html: highlightJava(test.testCode) }}
+                            dangerouslySetInnerHTML={{ __html: highlightCode(test.testCode, test.testFileName) }}
                           />
                         </div>
                       ))
