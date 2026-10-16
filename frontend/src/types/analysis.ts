@@ -102,3 +102,27 @@ export interface AnalysisHistoryItem {
   createdAt: string;
 }
 
+export interface CompilationDiagnostic {
+  fileName: string;
+  lineNumber: number;
+  columnNumber: number;
+  severity: 'ERROR' | 'WARNING' | 'NOTE';
+  message: string;
+}
+
+export interface CompilationRequest {
+  language: ProgrammingLanguage;
+  files: CodeFile[];
+}
+
+export interface CompilationResponse {
+  success: boolean;
+  language: ProgrammingLanguage;
+  compilerName: string;
+  executionTimeMs: number;
+  errorCount: number;
+  warningCount: number;
+  diagnostics: CompilationDiagnostic[];
+  outputLog: string;
+}
+

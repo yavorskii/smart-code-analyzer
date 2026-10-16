@@ -11,10 +11,12 @@ import {
   Database,
   Terminal,
   BarChart3,
+  Hammer,
 } from 'lucide-react';
 import { getSampleProject } from './data/sampleProjects';
 import {
   analyzeCode,
+  compileCode,
   getAnalysisHistory,
   getAnalysisById,
   deleteAnalysis,
@@ -26,6 +28,7 @@ import type {
   AnalysisHistoryItem,
   AnalysisResponse,
   CodeFile,
+  CompilationResponse,
   ProgrammingLanguage,
 } from './types/analysis';
 import './App.css';
@@ -38,7 +41,9 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<AnalysisResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<'insights' | 'issues' | 'metrics' | 'refactor' | 'tests'>('insights');
+  const [compiling, setCompiling] = useState<boolean>(false);
+  const [compilationResult, setCompilationResult] = useState<CompilationResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<'insights' | 'issues' | 'metrics' | 'refactor' | 'tests' | 'build'>('insights');
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
 
   const [historyOpen, setHistoryOpen] = useState<boolean>(false);
@@ -138,6 +143,7 @@ export default function App() {
     setFiles(getSampleProject(newLang));
     setActiveFileIndex(0);
     setResponse(null);
+    setCompilationResult(null);
     setError(null);
   };
 
@@ -145,7 +151,36 @@ export default function App() {
     setFiles(getSampleProject(language));
     setActiveFileIndex(0);
     setResponse(null);
+    setCompilationResult(null);
     setError(null);
+  };
+
+  const handleBuildProject = async () => {
+    setCompiling(true);
+    setActiveTab('build');
+    try {
+      const res = await compileCode({ language, files });
+      setCompilationResult(res);
+    } catch (err) {
+      setCompilationResult({
+        success: false,
+        language,
+        compilerName: 'Compiler Error',
+        executionTimeMs: 0,
+        errorCount: 1,
+        warningCount: 0,
+        diagnostics: [{
+          fileName: currentFile?.fileName || 'Main',
+          lineNumber: 1,
+          columnNumber: 1,
+          severity: 'ERROR',
+          message: err instanceof Error ? err.message : 'Compilation request failed',
+        }],
+        outputLog: `Build failed: ${err instanceof Error ? err.message : 'Error'}\n`,
+      });
+    } finally {
+      setCompiling(false);
+    }
   };
 
   const handleRunAnalysis = async () => {
@@ -247,6 +282,17 @@ export default function App() {
             <option value="PERFORMANCE">Performance</option>
             <option value="SECURITY">Security</option>
           </select>
+
+          <button
+            className="jb-build-btn"
+            onClick={handleBuildProject}
+            disabled={compiling || files.length === 0}
+            title="Build Project (Ctrl+F9 / In-memory javac & AST compiler)"
+            style={{ marginLeft: '8px' }}
+          >
+            <Hammer size={13} />
+            <span>{compiling ? 'Building...' : 'Build Project'}</span>
+          </button>
 
           <button
             className="jb-run-btn"
@@ -431,6 +477,20 @@ export default function App() {
                 <span>Tests</span>
                 {response && <span className="jb-badge">{response.generatedTests.length}</span>}
               </button>
+              <button
+                className={`jb-tool-tab ${activeTab === 'build' ? 'active' : ''}`}
+                onClick={() => setActiveTab('build')}
+              >
+                <span>Build Output</span>
+                {compilationResult && (
+                  <span
+                    className={`jb-badge ${compilationResult.success ? '' : 'jb-badge-error'}`}
+                    style={{ marginLeft: '4px' }}
+                  >
+                    {compilationResult.success ? 'OK' : `${compilationResult.errorCount} err`}
+                  </span>
+                )}
+              </button>
             </div>
 
             {response && (
@@ -452,14 +512,79 @@ export default function App() {
           </div>
 
           <div className="jb-inspection-content">
-            {!response ? (
+            {activeTab === 'build' ? (
+              <div className="jb-build-console">
+                <div className="jb-console-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Hammer size={13} color="#dfe1e5" />
+                    <span style={{ fontWeight: 600, color: '#dfe1e5' }}>
+                      {compilationResult ? compilationResult.compilerName : 'In-Memory Compiler'}
+                    </span>
+                    {compilationResult && (
+                      <span style={{ color: '#8da1b9' }}>({compilationResult.executionTimeMs} ms)</span>
+                    )}
+                  </div>
+                  {compilationResult && (
+                    <span className={`jb-health-tag ${compilationResult.success ? 'jb-health-good' : 'jb-health-critical'}`}>
+                      {compilationResult.success ? 'BUILD SUCCESSFUL' : `BUILD FAILED (${compilationResult.errorCount} ERRORS)`}
+                    </span>
+                  )}
+                </div>
+
+                {!compilationResult ? (
+                  <div className="jb-empty-box">
+                    <Hammer size={32} />
+                    <div style={{ fontWeight: 600, color: '#dfe1e5', marginBottom: '4px' }}>
+                      No Build Executed Yet
+                    </div>
+                    <div style={{ fontSize: '11px', maxWidth: '300px' }}>
+                      Click <strong>«Build Project» 🔨</strong> in the top toolbar to compile your code in-memory with JDK 21 <code>javac</code> and check for compiler errors.
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {compilationResult.diagnostics.length > 0 && (
+                      <div style={{ padding: '8px 12px', background: '#202226', borderBottom: '1px solid #323438' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#f75464', marginBottom: '6px' }}>
+                          Compiler Diagnostics ({compilationResult.diagnostics.length}):
+                        </div>
+                        <div className="jb-diag-list">
+                          {compilationResult.diagnostics.map((diag, idx) => (
+                            <div
+                              key={idx}
+                              className="jb-diag-card"
+                              onClick={() => {
+                                const fileIdx = files.findIndex((f) => f.fileName === diag.fileName);
+                                if (fileIdx >= 0) {
+                                  setActiveFileIndex(fileIdx);
+                                }
+                              }}
+                              title="Click to jump to file"
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                                <span style={{ color: '#f75464', fontWeight: 600 }}>[{diag.severity}]</span>
+                                <span style={{ fontFamily: 'var(--font-mono)', color: '#8da1b9' }}>
+                                  {diag.fileName}:{diag.lineNumber}:{diag.columnNumber}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '11.5px', color: '#e4e6eb' }}>{diag.message}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <pre className="jb-console-log">{compilationResult.outputLog}</pre>
+                  </>
+                )}
+              </div>
+            ) : !response ? (
               <div className="jb-empty-box">
                 <Terminal size={32} />
                 <div style={{ fontWeight: 600, color: '#dfe1e5', marginBottom: '4px' }}>
                   No Inspection Performed
                 </div>
                 <div style={{ fontSize: '11px', maxWidth: '280px' }}>
-                  Click <strong>«Inspect Code»</strong> in toolbar to run multi-file architectural analysis, detect circular dependencies, and view inspection warnings.
+                  Click <strong>«Inspect Code»</strong> in toolbar to run multi-file architectural analysis, detect circular dependencies, and calculate metrics.
                 </div>
               </div>
             ) : (
