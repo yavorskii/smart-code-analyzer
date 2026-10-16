@@ -22,11 +22,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import ua.pnu.smartcode.dto.CodeMetricsSummaryDto;
+import ua.pnu.smartcode.metrics.CodeMetricsCalculator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
 public class JavaCodeAnalyzer implements LanguageAnalyzer {
+
+    private final CodeMetricsCalculator metricsCalculator;
+
+    public JavaCodeAnalyzer() {
+        this(new CodeMetricsCalculator());
+    }
+
+    public JavaCodeAnalyzer(CodeMetricsCalculator metricsCalculator) {
+        this.metricsCalculator = metricsCalculator;
+    }
 
     private static final Pattern PACKAGE_PATTERN = Pattern.compile("^\\s*package\\s+([a-zA-Z0-9_.]+);", Pattern.MULTILINE);
     private static final Pattern TYPE_PATTERN = Pattern.compile("\\b(class|interface|record|enum)\\s+([A-Za-z0-9_]+)");
@@ -60,6 +72,7 @@ public class JavaCodeAnalyzer implements LanguageAnalyzer {
 
         int qualityScore = calculateQualityScore(issues);
         String summary = buildSummary(files.size(), issues, architectureInsights, qualityScore);
+        CodeMetricsSummaryDto metrics = metricsCalculator.calculateMetrics(files, ProgrammingLanguage.JAVA);
 
         return new AnalysisResponseDto(
                 requestId,
@@ -69,7 +82,8 @@ public class JavaCodeAnalyzer implements LanguageAnalyzer {
                 issues,
                 architectureInsights,
                 refactoredFiles,
-                generatedTests
+                generatedTests,
+                metrics
         );
     }
 

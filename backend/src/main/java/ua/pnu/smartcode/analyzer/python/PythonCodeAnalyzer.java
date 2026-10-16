@@ -21,11 +21,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import ua.pnu.smartcode.dto.CodeMetricsSummaryDto;
+import ua.pnu.smartcode.metrics.CodeMetricsCalculator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
 public class PythonCodeAnalyzer implements LanguageAnalyzer {
+
+    private final CodeMetricsCalculator metricsCalculator;
+
+    public PythonCodeAnalyzer() {
+        this(new CodeMetricsCalculator());
+    }
+
+    public PythonCodeAnalyzer(CodeMetricsCalculator metricsCalculator) {
+        this.metricsCalculator = metricsCalculator;
+    }
 
     private static final Pattern CLASS_PATTERN = Pattern.compile("^\\s*class\\s+([A-Za-z0-9_]+)", Pattern.MULTILINE);
     private static final Pattern DEF_PATTERN = Pattern.compile("^\\s*def\\s+([A-Za-z0-9_]+)\\s*\\(([^)]*)\\)", Pattern.MULTILINE);
@@ -63,6 +75,7 @@ public class PythonCodeAnalyzer implements LanguageAnalyzer {
 
         int qualityScore = calculateQualityScore(issues);
         String summary = buildSummary(files.size(), issues, architectureInsights, qualityScore);
+        CodeMetricsSummaryDto metrics = metricsCalculator.calculateMetrics(files, ProgrammingLanguage.PYTHON);
 
         return new AnalysisResponseDto(
                 requestId,
@@ -72,7 +85,8 @@ public class PythonCodeAnalyzer implements LanguageAnalyzer {
                 issues,
                 architectureInsights,
                 refactoredFiles,
-                generatedTests
+                generatedTests,
+                metrics
         );
     }
 

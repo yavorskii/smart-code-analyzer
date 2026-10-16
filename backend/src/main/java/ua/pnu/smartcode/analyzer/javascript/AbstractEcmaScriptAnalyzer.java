@@ -17,12 +17,24 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import ua.pnu.smartcode.dto.CodeMetricsSummaryDto;
+import ua.pnu.smartcode.metrics.CodeMetricsCalculator;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class AbstractEcmaScriptAnalyzer implements LanguageAnalyzer {
+
+    protected final CodeMetricsCalculator metricsCalculator;
+
+    protected AbstractEcmaScriptAnalyzer() {
+        this(new CodeMetricsCalculator());
+    }
+
+    protected AbstractEcmaScriptAnalyzer(CodeMetricsCalculator metricsCalculator) {
+        this.metricsCalculator = metricsCalculator;
+    }
 
     private static final Pattern CLASS_PATTERN = Pattern.compile("\\bclass\\s+([A-Za-z0-9_]+)");
     private static final Pattern IMPORT_FROM_PATTERN = Pattern.compile("import\\s+.*?from\\s+['\"](.*?)['\"]");
@@ -66,6 +78,7 @@ public abstract class AbstractEcmaScriptAnalyzer implements LanguageAnalyzer {
 
         int qualityScore = calculateQualityScore(issues);
         String summary = buildSummary(files.size(), issues, architectureInsights, qualityScore);
+        CodeMetricsSummaryDto metrics = metricsCalculator.calculateMetrics(files, getTargetLanguage());
 
         return new AnalysisResponseDto(
                 requestId,
@@ -75,7 +88,8 @@ public abstract class AbstractEcmaScriptAnalyzer implements LanguageAnalyzer {
                 issues,
                 architectureInsights,
                 refactoredFiles,
-                generatedTests
+                generatedTests,
+                metrics
         );
     }
 
