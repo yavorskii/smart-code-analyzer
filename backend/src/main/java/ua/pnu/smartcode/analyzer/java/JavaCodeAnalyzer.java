@@ -316,15 +316,12 @@ public class JavaCodeAnalyzer implements LanguageAnalyzer {
 
                 testCode.append("import org.junit.jupiter.api.BeforeEach;\n")
                         .append("import org.junit.jupiter.api.Test;\n")
-                        .append("import org.junit.jupiter.api.extension.ExtendWith;\n")
-                        .append("import org.mockito.junit.jupiter.MockitoExtension;\n\n")
                         .append("import static org.junit.jupiter.api.Assertions.*;\n\n")
-                        .append("@ExtendWith(MockitoExtension.class)\n")
                         .append("class ").append(testClassName).append(" {\n\n")
                         .append("    private ").append(parsed.className()).append(" target;\n\n")
                         .append("    @BeforeEach\n")
                         .append("    void setUp() {\n")
-                        .append("        // Setup test instance and mocks\n")
+                        .append("        target = new ").append(parsed.className()).append("();\n")
                         .append("    }\n\n")
                         .append("    @Test\n")
                         .append("    void shouldExecuteSuccessfully() {\n")
@@ -336,7 +333,7 @@ public class JavaCodeAnalyzer implements LanguageAnalyzer {
                         testClassName + ".java",
                         parsed.fileName(),
                         testCode.toString(),
-                        "JUnit 5 + Mockito"
+                        "JUnit 5"
                 ));
             }
         }

@@ -330,24 +330,25 @@ public abstract class AbstractEcmaScriptAnalyzer implements LanguageAnalyzer {
                 String testFileName = module.moduleName() + ".test" + getFileExtension();
                 StringBuilder testCode = new StringBuilder();
 
-                testCode.append("import { describe, it, expect, beforeEach } from '").append(getTestFrameworkName().toLowerCase()).append("';\n");
+                testCode.append("import { describe, it, beforeEach } from 'node:test';\n")
+                        .append("import assert from 'node:assert';\n");
 
                 if (!module.declaredClasses().isEmpty()) {
                     String mainClass = module.declaredClasses().iterator().next();
                     testCode.append("import { ").append(mainClass).append(" } from './").append(module.moduleName()).append("';\n\n");
                     testCode.append("describe('").append(mainClass).append("', () => {\n");
-                    testCode.append("  let service: any;\n\n");
+                    testCode.append("  let service;\n\n");
                     testCode.append("  beforeEach(() => {\n");
                     testCode.append("    service = new ").append(mainClass).append("();\n");
                     testCode.append("  });\n\n");
                     testCode.append("  it('should be successfully instantiated', () => {\n");
-                    testCode.append("    expect(service).toBeDefined();\n");
+                    testCode.append("    assert.ok(service);\n");
                     testCode.append("  });\n");
                     testCode.append("});\n");
                 } else {
                     testCode.append("\ndescribe('").append(module.moduleName()).append(" Suite', () => {\n");
                     testCode.append("  it('should run module smoke test', () => {\n");
-                    testCode.append("    expect(true).toBe(true);\n");
+                    testCode.append("    assert.strictEqual(true, true);\n");
                     testCode.append("  });\n");
                     testCode.append("});\n");
                 }
