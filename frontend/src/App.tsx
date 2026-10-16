@@ -13,6 +13,8 @@ import {
   BarChart3,
   Hammer,
   Search,
+  Download,
+  Printer,
 } from 'lucide-react';
 import { getSampleProject } from './data/sampleProjects';
 import {
@@ -26,6 +28,7 @@ import {
 } from './services/api';
 import { highlightCode } from './utils/highlighter';
 import { FileIcon } from './components/FileIcon';
+import { generateMarkdownReport, downloadMarkdownReport, printAuditReport } from './utils/reportExporter';
 import type {
   AnalysisFocus,
   AnalysisHistoryItem,
@@ -630,6 +633,29 @@ export default function App() {
                     MI: {response.metrics.overallMaintainabilityIndex} ({response.metrics.maintainabilityRating})
                   </span>
                 )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                  <button
+                    className="jb-btn-tool"
+                    onClick={() => {
+                      const md = generateMarkdownReport(response, files);
+                      downloadMarkdownReport(md, `smartcode-audit-${response.language.toLowerCase()}.md`);
+                    }}
+                    title="Export full audit report as Markdown (.md)"
+                    style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                  >
+                    <Download size={11} />
+                    <span>Export MD</span>
+                  </button>
+                  <button
+                    className="jb-btn-tool"
+                    onClick={() => printAuditReport(response, files)}
+                    title="Print or Save Audit Report as PDF"
+                    style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                  >
+                    <Printer size={11} />
+                    <span>PDF / Print</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
