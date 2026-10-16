@@ -10,6 +10,7 @@ import {
   X,
   Database,
   Terminal,
+  BarChart3,
 } from 'lucide-react';
 import { getSampleProject } from './data/sampleProjects';
 import {
@@ -37,7 +38,7 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<AnalysisResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<'insights' | 'issues' | 'refactor' | 'tests'>('insights');
+  const [activeTab, setActiveTab] = useState<'insights' | 'issues' | 'metrics' | 'refactor' | 'tests'>('insights');
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
 
   const [historyOpen, setHistoryOpen] = useState<boolean>(false);
@@ -408,6 +409,15 @@ export default function App() {
                 {response && <span className="jb-badge">{response.issues.length}</span>}
               </button>
               <button
+                className={`jb-tool-tab ${activeTab === 'metrics' ? 'active' : ''}`}
+                onClick={() => setActiveTab('metrics')}
+              >
+                <span>Metrics</span>
+                {response?.metrics && (
+                  <span className="jb-badge">{response.metrics.overallMaintainabilityIndex}/100</span>
+                )}
+              </button>
+              <button
                 className={`jb-tool-tab ${activeTab === 'refactor' ? 'active' : ''}`}
                 onClick={() => setActiveTab('refactor')}
               >
@@ -428,6 +438,15 @@ export default function App() {
                 <span className={`jb-health-tag ${response.qualityScore >= 80 ? 'jb-health-good' : response.qualityScore >= 50 ? 'jb-health-warning' : 'jb-health-critical'}`}>
                   Score: {response.qualityScore}/100
                 </span>
+                {response.metrics && (
+                  <span
+                    className={`jb-health-tag ${response.metrics.overallMaintainabilityIndex >= 65 ? 'jb-health-good' : 'jb-health-warning'}`}
+                    style={{ marginLeft: '4px' }}
+                    title={`Maintainability Index: ${response.metrics.overallMaintainabilityIndex}/100 (Rating ${response.metrics.maintainabilityRating})`}
+                  >
+                    MI: {response.metrics.overallMaintainabilityIndex} ({response.metrics.maintainabilityRating})
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -507,6 +526,129 @@ export default function App() {
                       ))
                     )}
                   </>
+                )}
+
+                {/* Tab: Metrics & Complexity */}
+                {activeTab === 'metrics' && (
+                  <div className="jb-metrics-dashboard">
+                    {!response.metrics ? (
+                      <div className="jb-empty-box">
+                        <BarChart3 size={32} />
+                        <div style={{ color: '#868a91', fontWeight: 600 }}>No Metrics Available</div>
+                        <div style={{ fontSize: '11px' }}>Run inspection to calculate software metrics.</div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* KPI Cards Grid */}
+                        <div className="jb-metrics-grid">
+                          <div className="jb-metric-card">
+                            <div className="jb-metric-card-header">
+                              <span>Maintainability (MI)</span>
+                              <span className={`jb-grade-badge grade-${response.metrics.maintainabilityRating.toLowerCase()}`}>
+                                {response.metrics.maintainabilityRating}
+                              </span>
+                            </div>
+                            <div className="jb-metric-card-value">
+                              {response.metrics.overallMaintainabilityIndex}
+                              <span style={{ fontSize: '12px', color: '#868a91' }}>/100</span>
+                            </div>
+                            <div className="jb-metric-card-sub">
+                              SEI / Microsoft Index
+                            </div>
+                          </div>
+
+                          <div className="jb-metric-card">
+                            <div className="jb-metric-card-header">
+                              <span>Cyclomatic (CC)</span>
+                              <span className={`jb-complexity-pill complexity-${response.metrics.averageCyclomaticComplexity <= 10 ? 'low' : response.metrics.averageCyclomaticComplexity <= 20 ? 'moderate' : 'high'}`}>
+                                {response.metrics.averageCyclomaticComplexity <= 10 ? 'LOW' : 'MODERATE'}
+                              </span>
+                            </div>
+                            <div className="jb-metric-card-value">
+                              {response.metrics.averageCyclomaticComplexity}
+                              <span style={{ fontSize: '11px', color: '#868a91' }}>avg (max {response.metrics.maxCyclomaticComplexity})</span>
+                            </div>
+                            <div className="jb-metric-card-sub">
+                              McCabe Decision Points
+                            </div>
+                          </div>
+
+                          <div className="jb-metric-card">
+                            <div className="jb-metric-card-header">
+                              <span>Cognitive Load</span>
+                            </div>
+                            <div className="jb-metric-card-value">
+                              {response.metrics.totalCognitiveComplexity}
+                            </div>
+                            <div className="jb-metric-card-sub">
+                              Nesting & control burden
+                            </div>
+                          </div>
+
+                          <div className="jb-metric-card">
+                            <div className="jb-metric-card-header">
+                              <span>Lines of Code</span>
+                            </div>
+                            <div className="jb-metric-card-value">
+                              {response.metrics.totalSourceLines}
+                              <span style={{ fontSize: '11px', color: '#868a91' }}>SLOC</span>
+                            </div>
+                            <div className="jb-metric-card-sub">
+                              {response.metrics.averageCommentRatio}% comments ({response.metrics.totalCommentLines} lines)
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* File Breakdown Table */}
+                        <div className="jb-metrics-table-container">
+                          <table className="jb-metrics-table">
+                            <thead>
+                              <tr>
+                                <th>File Name</th>
+                                <th>Lines (Total/Src)</th>
+                                <th>Comments</th>
+                                <th>Cyclomatic (CC)</th>
+                                <th>Cognitive</th>
+                                <th>MI Score</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {response.metrics.files.map((fm) => (
+                                <tr key={fm.fileName}>
+                                  <td>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <FileIcon fileName={fm.fileName} size={13} />
+                                      <span>{fm.fileName}</span>
+                                    </div>
+                                  </td>
+                                  <td>{fm.totalLines} / {fm.sourceLines}</td>
+                                  <td>{fm.commentRatio}% ({fm.commentLines})</td>
+                                  <td>
+                                    <span className={`jb-complexity-pill complexity-${fm.complexityRating.toLowerCase().replace('_', '-')}`}>
+                                      CC: {fm.cyclomaticComplexity}
+                                    </span>
+                                  </td>
+                                  <td>{fm.cognitiveComplexity}</td>
+                                  <td>
+                                    <span className={`jb-grade-badge grade-${fm.maintainabilityRating.toLowerCase()}`} style={{ marginRight: '6px' }}>
+                                      {fm.maintainabilityRating}
+                                    </span>
+                                    <span>{fm.maintainabilityIndex}/100</span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Engineering / Formula Reference Box */}
+                        <div className="jb-metrics-formula-box">
+                          <div><strong>Maintainability Index (SEI/Microsoft standard):</strong> <code>MI = 171 - 5.2·ln(HV) - 0.23·CC - 16.2·ln(LOC)</code> (Grade A: 85-100, B: 65-84, C: 50-64, D: &lt;50).</div>
+                          <div style={{ marginTop: '2px' }}><strong>McCabe Cyclomatic Complexity:</strong> <code>V(G) = P + 1</code> (1-10 Simple low-risk, 11-20 Moderate, &gt;20 High testing cost).</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
 
                 {/* Tab: Refactoring */}

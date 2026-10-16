@@ -43,6 +43,32 @@ export interface GeneratedTest {
   framework: string;
 }
 
+export interface FileMetrics {
+  fileName: string;
+  totalLines: number;
+  sourceLines: number;
+  commentLines: number;
+  commentRatio: number;
+  cyclomaticComplexity: number;
+  cognitiveComplexity: number;
+  maintainabilityIndex: number;
+  complexityRating: 'LOW' | 'MODERATE' | 'HIGH' | 'VERY_HIGH';
+  maintainabilityRating: 'A' | 'B' | 'C' | 'D';
+}
+
+export interface CodeMetricsSummary {
+  totalLines: number;
+  totalSourceLines: number;
+  totalCommentLines: number;
+  averageCommentRatio: number;
+  averageCyclomaticComplexity: number;
+  maxCyclomaticComplexity: number;
+  totalCognitiveComplexity: number;
+  overallMaintainabilityIndex: number;
+  maintainabilityRating: string;
+  files: FileMetrics[];
+}
+
 export interface AnalysisResponse {
   id: string;
   language: ProgrammingLanguage;
@@ -52,6 +78,7 @@ export interface AnalysisResponse {
   architectureInsights: ArchitectureInsight[];
   refactoredFiles: RefactoredFile[];
   generatedTests: GeneratedTest[];
+  metrics?: CodeMetricsSummary;
 }
 
 export interface AnalysisRequest {
