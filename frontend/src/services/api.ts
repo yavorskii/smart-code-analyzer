@@ -5,7 +5,27 @@ import type {
   CompilationResponse,
   ExecutionRequest,
   ExecutionResponse,
+  TestExecutionRequest,
+  TestExecutionResponse,
 } from '../types/analysis';
+
+export async function runTests(request: TestExecutionRequest): Promise<TestExecutionResponse> {
+  const response = await fetch('/api/v1/test/run', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const message = errorBody?.message || errorBody?.error || `HTTP error ${response.status}`;
+    throw new Error(message);
+  }
+
+  return response.json();
+}
 
 export async function executeCode(request: ExecutionRequest): Promise<ExecutionResponse> {
   const response = await fetch('/api/v1/run', {

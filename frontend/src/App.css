@@ -996,4 +996,64 @@
   gap: 8px;
 }
 
+/* Test Execution Results (IntelliJ style) */
+.jb-test-result-box {
+  background: #141517;
+  border-radius: 4px;
+  border: 1px solid var(--jb-border);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.jb-test-passed {
+  border-left: 3px solid #59a869;
+}
+
+.jb-test-failed {
+  border-left: 3px solid #f75464;
+}
+
+.jb-test-result-header {
+  height: 32px;
+  background: #1e2023;
+  border-bottom: 1px solid #282a2d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.jb-test-status-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+}
+
+.jb-test-status-pill.pass {
+  background: #1e3b26;
+  color: #59a869;
+  border: 1px solid #2d5e38;
+}
+
+.jb-test-status-pill.fail {
+  background: #47262a;
+  color: #f75464;
+  border: 1px solid #6b333a;
+}
+
+.jb-test-result-log {
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #dfe1e5;
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  background: #141517;
+}
+
 

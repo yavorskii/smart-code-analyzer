@@ -144,3 +144,24 @@ export interface ExecutionResponse {
   timedOut: boolean;
 }
 
+export interface TestExecutionRequest {
+  language: ProgrammingLanguage;
+  files: CodeFile[];
+  tests: GeneratedTest[];
+  testFileName?: string;
+}
+
+export interface TestExecutionResponse {
+  success: boolean;
+  language: ProgrammingLanguage;
+  totalCount: number;
+  passedCount: number;
+  failedCount: number;
+  skippedCount: number;
+  executionTimeMs: number;
+  framework: string;
+  stdout: string;
+  stderr: string;
+  outputLog: string;
+}
+

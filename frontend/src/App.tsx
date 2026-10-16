@@ -19,6 +19,7 @@ import {
   analyzeCode,
   compileCode,
   executeCode,
+  runTests,
   getAnalysisHistory,
   getAnalysisById,
   deleteAnalysis,
@@ -32,6 +33,7 @@ import type {
   CodeFile,
   CompilationResponse,
   ExecutionResponse,
+  TestExecutionResponse,
   ProgrammingLanguage,
 } from './types/analysis';
 import './App.css';
@@ -48,6 +50,8 @@ export default function App() {
   const [compilationResult, setCompilationResult] = useState<CompilationResponse | null>(null);
   const [executing, setExecuting] = useState<boolean>(false);
   const [executionResult, setExecutionResult] = useState<ExecutionResponse | null>(null);
+  const [runningTests, setRunningTests] = useState<boolean>(false);
+  const [testExecutionResult, setTestExecutionResult] = useState<TestExecutionResponse | null>(null);
   const [activeTab, setActiveTab] = useState<'insights' | 'issues' | 'metrics' | 'refactor' | 'tests' | 'build' | 'run'>('insights');
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
 
@@ -150,6 +154,7 @@ export default function App() {
     setResponse(null);
     setCompilationResult(null);
     setExecutionResult(null);
+    setTestExecutionResult(null);
     setError(null);
   };
 
@@ -159,6 +164,7 @@ export default function App() {
     setResponse(null);
     setCompilationResult(null);
     setExecutionResult(null);
+    setTestExecutionResult(null);
     setError(null);
   };
 
@@ -216,9 +222,69 @@ export default function App() {
     }
   };
 
+  const handleRunAllTests = async () => {
+    if (!response || response.generatedTests.length === 0) return;
+    setRunningTests(true);
+    try {
+      const res = await runTests({
+        language,
+        files,
+        tests: response.generatedTests,
+      });
+      setTestExecutionResult(res);
+    } catch (err) {
+      setTestExecutionResult({
+        success: false,
+        language,
+        totalCount: 0,
+        passedCount: 0,
+        failedCount: 1,
+        skippedCount: 0,
+        executionTimeMs: 0,
+        framework: 'Test Runner',
+        stdout: '',
+        stderr: err instanceof Error ? err.message : 'Failed to execute tests',
+        outputLog: err instanceof Error ? err.message : 'Failed to execute tests',
+      });
+    } finally {
+      setRunningTests(false);
+    }
+  };
+
+  const handleRunSingleTest = async (testFileName: string) => {
+    if (!response || response.generatedTests.length === 0) return;
+    setRunningTests(true);
+    try {
+      const res = await runTests({
+        language,
+        files,
+        tests: response.generatedTests,
+        testFileName,
+      });
+      setTestExecutionResult(res);
+    } catch (err) {
+      setTestExecutionResult({
+        success: false,
+        language,
+        totalCount: 0,
+        passedCount: 0,
+        failedCount: 1,
+        skippedCount: 0,
+        executionTimeMs: 0,
+        framework: 'Test Runner',
+        stdout: '',
+        stderr: err instanceof Error ? err.message : 'Failed to execute test',
+        outputLog: err instanceof Error ? err.message : 'Failed to execute test',
+      });
+    } finally {
+      setRunningTests(false);
+    }
+  };
+
   const handleRunAnalysis = async () => {
     setLoading(true);
     setError(null);
+    setTestExecutionResult(null);
     try {
       const res = await analyzeCode({
         language,
@@ -946,24 +1012,82 @@ export default function App() {
                         <div style={{ fontSize: '11px' }}>Add service classes (e.g. OrderService) to generate tests.</div>
                       </div>
                     ) : (
-                      response.generatedTests.map((test, idx) => (
-                        <div key={idx} className="jb-code-block">
-                          <div className="jb-code-header">
-                            <span>{test.testFileName} ({test.framework})</span>
-                            <button
-                              className="jb-btn-tool"
-                              onClick={() => handleCopy(test.testCode, `test-${idx}`)}
-                            >
-                              <Copy size={11} />
-                              <span>{copiedIndex === `test-${idx}` ? 'Copied' : 'Copy'}</span>
-                            </button>
-                          </div>
-                          <pre
-                            className="jb-code-pre"
-                            dangerouslySetInnerHTML={{ __html: highlightCode(test.testCode, test.testFileName) }}
-                          />
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '11px', color: '#8da1b9' }}>
+                            {response.generatedTests.length} test suite(s) generated for your project classes
+                          </span>
+                          <button
+                            className="jb-run-btn"
+                            onClick={handleRunAllTests}
+                            disabled={runningTests}
+                            style={{ padding: '3px 10px', fontSize: '11.5px' }}
+                            title="Execute all generated tests via test framework runner"
+                          >
+                            <Play size={12} fill="#ffffff" />
+                            <span>{runningTests ? 'Running Tests...' : 'Run All Tests'}</span>
+                          </button>
                         </div>
-                      ))
+
+                        {testExecutionResult && (
+                          <div className={`jb-test-result-box ${testExecutionResult.success ? 'jb-test-passed' : 'jb-test-failed'}`}>
+                            <div className="jb-test-result-header">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span className={`jb-test-status-pill ${testExecutionResult.success ? 'pass' : 'fail'}`}>
+                                  {testExecutionResult.success ? 'TESTS PASSED' : 'TESTS FAILED'}
+                                </span>
+                                <span style={{ fontWeight: 600, color: '#dfe1e5' }}>
+                                  {testExecutionResult.passedCount} of {testExecutionResult.totalCount} passed
+                                </span>
+                                {testExecutionResult.failedCount > 0 && (
+                                  <span style={{ color: '#f75464', fontWeight: 600 }}>
+                                    ({testExecutionResult.failedCount} failed)
+                                  </span>
+                                )}
+                              </div>
+                              <span style={{ color: '#8da1b9', fontSize: '11px' }}>
+                                {testExecutionResult.framework} • {testExecutionResult.executionTimeMs} ms
+                              </span>
+                            </div>
+                            <pre className="jb-test-result-log">
+                              {testExecutionResult.outputLog}
+                            </pre>
+                          </div>
+                        )}
+
+                        {response.generatedTests.map((test, idx) => (
+                          <div key={idx} className="jb-code-block">
+                            <div className="jb-code-header">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>{test.testFileName} ({test.framework})</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  className="jb-btn-tool"
+                                  onClick={() => handleRunSingleTest(test.testFileName)}
+                                  disabled={runningTests}
+                                  title={`Run ${test.testFileName}`}
+                                  style={{ color: '#59a869', borderColor: '#2d5e38' }}
+                                >
+                                  <Play size={10} fill="#59a869" />
+                                  <span>{runningTests ? 'Testing...' : 'Run Test'}</span>
+                                </button>
+                                <button
+                                  className="jb-btn-tool"
+                                  onClick={() => handleCopy(test.testCode, `test-${idx}`)}
+                                >
+                                  <Copy size={11} />
+                                  <span>{copiedIndex === `test-${idx}` ? 'Copied' : 'Copy'}</span>
+                                </button>
+                              </div>
+                            </div>
+                            <pre
+                              className="jb-code-pre"
+                              dangerouslySetInnerHTML={{ __html: highlightCode(test.testCode, test.testFileName) }}
+                            />
+                          </div>
+                        ))}
+                      </>
                     )}
                   </>
                 )}
