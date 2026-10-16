@@ -12,11 +12,13 @@ import {
   Terminal,
   BarChart3,
   Hammer,
+  Search,
 } from 'lucide-react';
 import { getSampleProject } from './data/sampleProjects';
 import {
   analyzeCode,
   compileCode,
+  executeCode,
   getAnalysisHistory,
   getAnalysisById,
   deleteAnalysis,
@@ -29,6 +31,7 @@ import type {
   AnalysisResponse,
   CodeFile,
   CompilationResponse,
+  ExecutionResponse,
   ProgrammingLanguage,
 } from './types/analysis';
 import './App.css';
@@ -43,7 +46,9 @@ export default function App() {
   const [response, setResponse] = useState<AnalysisResponse | null>(null);
   const [compiling, setCompiling] = useState<boolean>(false);
   const [compilationResult, setCompilationResult] = useState<CompilationResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<'insights' | 'issues' | 'metrics' | 'refactor' | 'tests' | 'build'>('insights');
+  const [executing, setExecuting] = useState<boolean>(false);
+  const [executionResult, setExecutionResult] = useState<ExecutionResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<'insights' | 'issues' | 'metrics' | 'refactor' | 'tests' | 'build' | 'run'>('insights');
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
 
   const [historyOpen, setHistoryOpen] = useState<boolean>(false);
@@ -144,6 +149,7 @@ export default function App() {
     setActiveFileIndex(0);
     setResponse(null);
     setCompilationResult(null);
+    setExecutionResult(null);
     setError(null);
   };
 
@@ -152,6 +158,7 @@ export default function App() {
     setActiveFileIndex(0);
     setResponse(null);
     setCompilationResult(null);
+    setExecutionResult(null);
     setError(null);
   };
 
@@ -180,6 +187,32 @@ export default function App() {
       });
     } finally {
       setCompiling(false);
+    }
+  };
+
+  const handleRunCode = async () => {
+    setExecuting(true);
+    setActiveTab('run');
+    try {
+      const res = await executeCode({
+        language,
+        files,
+        mainFileName: currentFile?.fileName,
+      });
+      setExecutionResult(res);
+    } catch (err) {
+      setExecutionResult({
+        success: false,
+        language,
+        exitCode: 1,
+        stdout: '',
+        stderr: err instanceof Error ? err.message : 'Execution failed',
+        executionTimeMs: 0,
+        commandExecuted: 'run',
+        timedOut: false,
+      });
+    } finally {
+      setExecuting(false);
     }
   };
 
@@ -296,12 +329,22 @@ export default function App() {
 
           <button
             className="jb-run-btn"
-            onClick={handleRunAnalysis}
-            disabled={loading || files.length === 0}
-            title="Inspect Code (Run static analysis)"
+            onClick={handleRunCode}
+            disabled={executing || files.length === 0}
+            title="Run Application (Shift+F10 / Executes entry point in isolated runtime)"
           >
             <Play size={13} fill="#ffffff" />
-            {loading ? 'Inspecting...' : 'Inspect Code'}
+            <span>{executing ? 'Running...' : 'Run'}</span>
+          </button>
+
+          <button
+            className="jb-inspect-btn"
+            onClick={handleRunAnalysis}
+            disabled={loading || files.length === 0}
+            title="Inspect Code (Run multi-file architectural analysis)"
+          >
+            <Search size={13} />
+            <span>{loading ? 'Inspecting...' : 'Inspect Code'}</span>
           </button>
         </div>
 
@@ -491,6 +534,20 @@ export default function App() {
                   </span>
                 )}
               </button>
+              <button
+                className={`jb-tool-tab ${activeTab === 'run' ? 'active' : ''}`}
+                onClick={() => setActiveTab('run')}
+              >
+                <span>Run</span>
+                {executionResult && (
+                  <span
+                    className={`jb-badge ${executionResult.success ? '' : 'jb-badge-error'}`}
+                    style={{ marginLeft: '4px' }}
+                  >
+                    {executionResult.success ? 'exit 0' : `exit ${executionResult.exitCode}`}
+                  </span>
+                )}
+              </button>
             </div>
 
             {response && (
@@ -512,7 +569,70 @@ export default function App() {
           </div>
 
           <div className="jb-inspection-content">
-            {activeTab === 'build' ? (
+            {activeTab === 'run' ? (
+              <div className="jb-run-console">
+                <div className="jb-console-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Play size={12} fill="#3574f0" color="#3574f0" />
+                    <span style={{ fontWeight: 600, color: '#dfe1e5' }}>
+                      Run: {currentFile?.fileName || 'Application'}
+                    </span>
+                    {executionResult && (
+                      <span style={{ color: '#8da1b9' }}>({executionResult.executionTimeMs} ms)</span>
+                    )}
+                  </div>
+                  {executionResult && (
+                    <span className={`jb-health-tag ${executionResult.success ? 'jb-health-good' : 'jb-health-critical'}`}>
+                      {executionResult.timedOut
+                        ? 'TIMED OUT'
+                        : executionResult.success
+                        ? 'PROCESS FINISHED (EXIT 0)'
+                        : `PROCESS FAILED (EXIT ${executionResult.exitCode})`}
+                    </span>
+                  )}
+                </div>
+
+                {!executionResult ? (
+                  <div className="jb-empty-box">
+                    <Play size={32} />
+                    <div style={{ fontWeight: 600, color: '#dfe1e5', marginBottom: '4px' }}>
+                      No Process Executed Yet
+                    </div>
+                    <div style={{ fontSize: '11px', maxWidth: '320px' }}>
+                      Click <strong>«Run» ▶️</strong> in the top toolbar to execute your code in an isolated runtime ({language === 'JAVA' ? 'Java 21 OpenJDK' : language === 'PYTHON' ? 'Python 3.12' : 'Node.js / TSX'}) and view live terminal output.
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="jb-run-cmd-line">
+                      <span style={{ color: '#8da1b9' }}>$</span>
+                      <span>{executionResult.commandExecuted}</span>
+                    </div>
+                    <div className="jb-run-body">
+                      {executionResult.stdout && (
+                        <div className="jb-run-stdout">{executionResult.stdout}</div>
+                      )}
+                      {executionResult.stderr && (
+                        <div className="jb-run-stderr">{executionResult.stderr}</div>
+                      )}
+                      {!executionResult.stdout && !executionResult.stderr && (
+                        <div style={{ color: '#8da1b9', fontStyle: 'italic' }}>
+                          (Process completed without console output)
+                        </div>
+                      )}
+                    </div>
+                    <div className="jb-run-footer">
+                      <span>
+                        Process finished with exit code {executionResult.exitCode}
+                        {executionResult.timedOut && ' (Execution timed out after 5s)'}
+                      </span>
+                      <span style={{ color: '#565a60' }}>•</span>
+                      <span>Elapsed: {executionResult.executionTimeMs} ms</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : activeTab === 'build' ? (
               <div className="jb-build-console">
                 <div className="jb-console-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -914,4 +914,86 @@
   background: #282a2e;
 }
 
+/* Inspection Button */
+.jb-inspect-btn {
+  background-color: #2b2d30;
+  color: #dfe1e5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 4px;
+  border: 1px solid #43454a;
+  font-weight: 500;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.jb-inspect-btn:hover:not(:disabled) {
+  background-color: #35373c;
+  border-color: #5c616b;
+  color: #ffffff;
+}
+
+.jb-inspect-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Execution / Run Console */
+.jb-run-console {
+  background: #141517;
+  border: 1px solid var(--jb-border);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.jb-run-cmd-line {
+  padding: 8px 12px;
+  background: #1e2023;
+  border-bottom: 1px solid #2a2c30;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #61afef;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.jb-run-body {
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  min-height: 120px;
+  max-height: 380px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.jb-run-stdout {
+  color: #e4e6eb;
+}
+
+.jb-run-stderr {
+  color: #f75464;
+  margin-top: 4px;
+}
+
+.jb-run-footer {
+  padding: 6px 12px;
+  background: #191a1d;
+  border-top: 1px solid #282a2d;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #8da1b9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 

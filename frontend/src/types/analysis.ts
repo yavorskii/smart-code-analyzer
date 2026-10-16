@@ -126,3 +126,21 @@ export interface CompilationResponse {
   outputLog: string;
 }
 
+export interface ExecutionRequest {
+  language: ProgrammingLanguage;
+  files: CodeFile[];
+  mainFileName?: string;
+  stdin?: string;
+}
+
+export interface ExecutionResponse {
+  success: boolean;
+  language: ProgrammingLanguage;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  executionTimeMs: number;
+  commandExecuted: string;
+  timedOut: boolean;
+}
+
