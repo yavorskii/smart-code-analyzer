@@ -19,6 +19,7 @@ import {
   Compass,
   Undo2,
   Redo2,
+  FileCode,
 } from 'lucide-react';
 import { getSampleProject } from './data/sampleProjects';
 import {
@@ -505,17 +506,14 @@ export default function App() {
     const file = files[index];
     if (!file) return;
 
-    if (files.length <= 1) {
-      if (window.confirm(`Це єдиний файл у проєкті. Бажаєте очистити його вміст?`)) {
-        setFiles([{ fileName: file.fileName, content: '' }]);
-      }
-      return;
-    }
-
     if (window.confirm(`Видалити файл "${file.fileName}" з проєкту?`)) {
       const nextFiles = files.filter((_, i) => i !== index);
       setFiles(nextFiles);
-      setActiveFileIndex(Math.max(0, index - 1));
+      if (nextFiles.length === 0) {
+        setActiveFileIndex(0);
+      } else if (activeFileIndex >= nextFiles.length) {
+        setActiveFileIndex(nextFiles.length - 1);
+      }
     }
   };
 
@@ -676,6 +674,7 @@ export default function App() {
   };
 
   const handleRunAnalysis = async () => {
+    if (files.length === 0) return;
     setLoading(true);
     setError(null);
     setTestExecutionResult(null);
@@ -767,7 +766,7 @@ export default function App() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const lineCount = (currentFile?.content.match(/\n/g) || []).length + 1;
+  const lineCount = currentFile ? (currentFile.content.match(/\n/g) || []).length + 1 : 0;
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
 
   const formatDate = (isoString: string) => {
@@ -927,38 +926,61 @@ export default function App() {
           </div>
 
           <div className="jb-file-tree">
-            {files.map((file, idx) => (
-              <div
-                key={file.fileName + idx}
-                className={`jb-tree-item ${idx === activeFileIndex ? 'active' : ''}`}
-                onClick={() => setActiveFileIndex(idx)}
-              >
-                <FileIcon fileName={file.fileName} content={file.content} size={14} />
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {file.fileName}
-                </span>
-                <div className="jb-tree-item-actions">
-                  <button
-                    className="jb-tree-action-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFileToRename(file.fileName);
-                      setIsRenameDialogOpen(true);
-                    }}
-                    title="Перейменувати файл"
-                  >
-                    <Edit2 size={11} />
-                  </button>
-                  <button
-                    className="jb-tree-action-btn jb-tree-delete"
-                    onClick={(e) => handleDeleteFile(idx, e)}
-                    title="Видалити файл"
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                </div>
+            {files.length === 0 ? (
+              <div style={{ padding: '28px 12px', textAlign: 'center', color: '#868a91', fontSize: '11px' }}>
+                <FolderTree size={20} style={{ margin: '0 auto 8px', opacity: 0.35 }} />
+                <div>Файли відсутні</div>
+                <button
+                  type="button"
+                  onClick={() => setIsNewFileDialogOpen(true)}
+                  style={{
+                    marginTop: '8px',
+                    background: 'transparent',
+                    border: '1px dashed #393b40',
+                    color: '#70a5f9',
+                    fontSize: '11px',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Створити файл
+                </button>
               </div>
-            ))}
+            ) : (
+              files.map((file, idx) => (
+                <div
+                  key={file.fileName + idx}
+                  className={`jb-tree-item ${idx === activeFileIndex ? 'active' : ''}`}
+                  onClick={() => setActiveFileIndex(idx)}
+                >
+                  <FileIcon fileName={file.fileName} content={file.content} size={14} />
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {file.fileName}
+                  </span>
+                  <div className="jb-tree-item-actions">
+                    <button
+                      className="jb-tree-action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFileToRename(file.fileName);
+                        setIsRenameDialogOpen(true);
+                      }}
+                      title="Перейменувати файл"
+                    >
+                      <Edit2 size={11} />
+                    </button>
+                    <button
+                      className="jb-tree-action-btn jb-tree-delete"
+                      onClick={(e) => handleDeleteFile(idx, e)}
+                      title="Видалити файл"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="jb-tree-actions">
@@ -1046,37 +1068,106 @@ export default function App() {
             </div>
           </div>
 
-          <div className="jb-editor-body">
-            <div className="jb-gutter" ref={gutterRef}>
-              {lineNumbers.map((num) => (
-                <div key={num}>{num}</div>
-              ))}
-            </div>
-
-            <div className="jb-editor-wrapper">
-              <pre
-                ref={highlightRef}
-                className="jb-highlight-layer"
-                dangerouslySetInnerHTML={{
-                  __html: highlightCode(currentFile?.content || '', currentFile?.fileName) + '\n',
+          {files.length === 0 ? (
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'var(--jb-bg-editor, #1e1f22)',
+                color: '#868a91',
+                padding: '32px',
+                textAlign: 'center',
+                gap: '14px',
+              }}
+            >
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  backgroundColor: '#26282e',
+                  border: '1px dashed #393b40',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#70a5f9',
                 }}
-              />
-              <textarea
-                ref={textareaRef}
-                className="jb-textarea"
-                value={currentFile?.content || ''}
-                onChange={handleTextareaChange}
-                onKeyDown={handleEditorKeyDown}
-                onScroll={handleScroll}
-                placeholder="// Write or paste code here..."
-                spellCheck={false}
-              />
+              >
+                <FileCode size={26} />
+              </div>
+
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: '#dfe1e5', marginBottom: '6px' }}>
+                  Файли відсутні
+                </div>
+                <div style={{ fontSize: '12px', color: '#868a91', maxWidth: '320px', lineHeight: 1.5 }}>
+                  У цьому проєкті немає жодного файлу. Створіть новий файл, щоб розпочати роботу або аналіз коду.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsNewFileDialogOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#3574f0',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '9px 18px',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(53, 116, 240, 0.3)',
+                  marginTop: '4px',
+                }}
+              >
+                <Plus size={15} />
+                <span>Створити новий файл</span>
+              </button>
+
+              <div style={{ fontSize: '11px', color: '#5f6368' }}>
+                або натисніть <kbd style={{ padding: '2px 5px', background: '#26282e', border: '1px solid #393b40', borderRadius: '3px', color: '#a0a5ad' }}>Alt + Insert</kbd>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="jb-editor-body">
+              <div className="jb-gutter" ref={gutterRef}>
+                {lineNumbers.map((num) => (
+                  <div key={num}>{num}</div>
+                ))}
+              </div>
+
+              <div className="jb-editor-wrapper">
+                <pre
+                  ref={highlightRef}
+                  className="jb-highlight-layer"
+                  dangerouslySetInnerHTML={{
+                    __html: highlightCode(currentFile?.content || '', currentFile?.fileName) + '\n',
+                  }}
+                />
+                <textarea
+                  ref={textareaRef}
+                  className="jb-textarea"
+                  value={currentFile?.content || ''}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleEditorKeyDown}
+                  onScroll={handleScroll}
+                  placeholder="// Write or paste code here..."
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+          )}
 
           <footer className="jb-statusbar">
             <div>
-              <span>File: {currentFile?.fileName}</span>
+              <span>{currentFile ? `File: ${currentFile.fileName}` : 'Файли відсутні'}</span>
             </div>
             <div className="jb-statusbar-right">
               <span>UTF-8</span>
