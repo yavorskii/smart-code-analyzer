@@ -228,6 +228,92 @@
   border-color: #555861;
 }
 
+.jb-brand-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.jb-brand-btn:hover {
+  background: var(--jb-bg-panel-hover);
+}
+
+.jb-project-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e1f22;
+  border: 1px solid var(--jb-border);
+  color: #70a5f9;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: all 0.15s;
+}
+
+.jb-project-pill:hover {
+  border-color: var(--jb-blue);
+  background: #252830;
+}
+
+.jb-tree-item-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.jb-tree-item:hover .jb-tree-item-actions {
+  opacity: 1;
+}
+
+.jb-tree-action-btn {
+  background: transparent;
+  color: var(--jb-text-muted);
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jb-tree-action-btn:hover {
+  color: var(--jb-text-primary);
+  background: var(--jb-bg-panel);
+}
+
+.jb-tree-action-btn.jb-tree-delete:hover {
+  color: var(--jb-red);
+  background: rgba(247, 84, 100, 0.15);
+}
+
+.jb-tab-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  color: var(--jb-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.jb-tab-add:hover {
+  color: var(--jb-text-primary);
+  background: var(--jb-bg-panel-hover);
+}
+
 /* Center: Editor Panel */
 .jb-editor-panel {
   flex: 1;

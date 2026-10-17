@@ -30,7 +30,7 @@ public class JavaCodeRunner implements CodeRunner {
     private static final int TIMEOUT_SECONDS = 5;
     private static final Pattern PACKAGE_PATTERN = Pattern.compile("(?m)^\\s*package\\s+([a-zA-Z0-9_.]+)\\s*;");
     private static final Pattern MAIN_METHOD_PATTERN = Pattern.compile("public\\s+static\\s+void\\s+main\\s*\\(");
-    private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("(?:public\\s+)?class\\s+([a-zA-Z0-9_]+)");
+    private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("(?:public\\s+)?(?:class|record|enum)\\s+([a-zA-Z0-9_]+)");
 
     @Override
     public boolean supports(ProgrammingLanguage language) {

@@ -15,6 +15,8 @@ import {
   Search,
   Download,
   Printer,
+  Edit2,
+  LayoutGrid,
 } from 'lucide-react';
 import { getSampleProject } from './data/sampleProjects';
 import {
@@ -28,6 +30,9 @@ import {
 } from './services/api';
 import { highlightCode } from './utils/highlighter';
 import { FileIcon } from './components/FileIcon';
+import { WelcomeScreen } from './components/WelcomeScreen';
+import { NewFileDialog } from './components/NewFileDialog';
+import { RenameFileDialog } from './components/RenameFileDialog';
 import { generateMarkdownReport, downloadMarkdownReport, printAuditReport } from './utils/reportExporter';
 import type {
   AnalysisFocus,
@@ -42,6 +47,12 @@ import type {
 import './App.css';
 
 export default function App() {
+  const [projectName, setProjectName] = useState<string>('ShopOrderSystem');
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState<boolean>(true);
+  const [isNewFileDialogOpen, setIsNewFileDialogOpen] = useState<boolean>(false);
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState<boolean>(false);
+  const [fileToRename, setFileToRename] = useState<string | null>(null);
+
   const [files, setFiles] = useState<CodeFile[]>(() => getSampleProject('JAVA'));
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [language, setLanguage] = useState<ProgrammingLanguage>('JAVA');
@@ -101,53 +112,55 @@ export default function App() {
     );
   };
 
-  const getFileExtension = (lang: ProgrammingLanguage) => {
-    switch (lang) {
-      case 'JAVA':
-        return '.java';
-      case 'PYTHON':
-        return '.py';
-      case 'JAVASCRIPT':
-        return '.js';
-      case 'TYPESCRIPT':
-        return '.ts';
-      default:
-        return '.java';
+  const detectedPackage = React.useMemo(() => {
+    if (language !== 'JAVA') return '';
+    for (const f of files) {
+      const m = f.content.match(/^\s*package\s+([a-zA-Z0-9_.]+);/m);
+      if (m && m[1]) return m[1];
     }
-  };
+    return 'ua.pnu.app';
+  }, [language, files]);
 
-  const getTemplateContent = (lang: ProgrammingLanguage, name: string) => {
-    switch (lang) {
-      case 'JAVA':
-        return `package ua.pnu.shop;\n\npublic class ${name} {\n    \n}\n`;
-      case 'PYTHON':
-        return `class ${name}:\n    def __init__(self):\n        pass\n`;
-      case 'JAVASCRIPT':
-      case 'TYPESCRIPT':
-        return `export class ${name} {\n    constructor() {\n        \n    }\n}\n`;
-      default:
-        return '';
-    }
-  };
-
-  const handleAddFile = () => {
-    const ext = getFileExtension(language);
-    const baseName = `Component${files.length + 1}`;
-    const newName = `${baseName}${ext}`;
-    const newFile: CodeFile = {
-      fileName: newName,
-      content: getTemplateContent(language, baseName),
-    };
+  const handleCreateFile = (newFile: CodeFile) => {
     setFiles((prev) => [...prev, newFile]);
     setActiveFileIndex(files.length);
   };
 
+  const handleRenameFile = (oldName: string, newName: string) => {
+    setFiles((prev) =>
+      prev.map((f) => {
+        if (f.fileName === oldName) {
+          let updatedContent = f.content;
+          const oldBase = oldName.replace(/\.[^/.]+$/, '');
+          const newBase = newName.replace(/\.[^/.]+$/, '');
+          if (oldBase !== newBase) {
+            const typeRegex = new RegExp(`\\b(class|record|interface|enum)\\s+${oldBase}\\b`, 'g');
+            updatedContent = updatedContent.replace(typeRegex, `$1 ${newBase}`);
+          }
+          return { fileName: newName, content: updatedContent };
+        }
+        return f;
+      })
+    );
+  };
+
   const handleDeleteFile = (index: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (files.length <= 1) return;
-    const nextFiles = files.filter((_, i) => i !== index);
-    setFiles(nextFiles);
-    setActiveFileIndex(Math.max(0, index - 1));
+    const file = files[index];
+    if (!file) return;
+
+    if (files.length <= 1) {
+      if (window.confirm(`Це єдиний файл у проєкті. Бажаєте очистити його вміст?`)) {
+        setFiles([{ fileName: file.fileName, content: '' }]);
+      }
+      return;
+    }
+
+    if (window.confirm(`Видалити файл "${file.fileName}" з проєкту?`)) {
+      const nextFiles = files.filter((_, i) => i !== index);
+      setFiles(nextFiles);
+      setActiveFileIndex(Math.max(0, index - 1));
+    }
   };
 
   const handleLanguageChange = (newLang: ProgrammingLanguage) => {
@@ -170,6 +183,50 @@ export default function App() {
     setTestExecutionResult(null);
     setError(null);
   };
+
+  const handleOpenProjectFromWelcome = (config: {
+    language: ProgrammingLanguage;
+    projectName: string;
+    files: CodeFile[];
+    mode: 'custom' | 'sample' | 'blank';
+  }) => {
+    setLanguage(config.language);
+    setProjectName(config.projectName);
+    setFiles(config.files);
+    setActiveFileIndex(0);
+    setResponse(null);
+    setCompilationResult(null);
+    setExecutionResult(null);
+    setTestExecutionResult(null);
+    setError(null);
+    setIsWelcomeOpen(false);
+  };
+
+  const handleOpenSavedAudit = async (id: string) => {
+    try {
+      setLoading(true);
+      const pastReport = await getAnalysisById(id);
+      setResponse(pastReport);
+      setLanguage(pastReport.language);
+      setIsWelcomeOpen(false);
+      setActiveTab('insights');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Не вдалося завантажити збережений звіт');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.altKey && e.key === 'Insert') || (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'n')) {
+        e.preventDefault();
+        setIsNewFileDialogOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleBuildProject = async () => {
     setCompiling(true);
@@ -356,7 +413,21 @@ export default function App() {
       {/* JetBrains Main Toolbar */}
       <header className="jb-toolbar">
         <div className="jb-toolbar-left">
-          <span className="jb-logo-text">Smart Code Analyzer</span>
+          <button
+            className="jb-brand-btn"
+            onClick={() => setIsWelcomeOpen(true)}
+            title="Повернутися на стартову сторінку / змінити проєкт"
+          >
+            <FolderTree size={14} color="#3574f0" />
+            <span className="jb-logo-text">Smart Code Analyzer</span>
+          </button>
+          <button
+            className="jb-project-pill"
+            onClick={() => setIsWelcomeOpen(true)}
+            title="Поточний проєкт (натисніть для вибору іншого)"
+          >
+            <span>📁 {projectName}</span>
+          </button>
         </div>
 
         <div className="jb-toolbar-center">
@@ -420,6 +491,15 @@ export default function App() {
         <div className="jb-toolbar-right">
           <button
             className="jb-btn-tool"
+            onClick={() => setIsWelcomeOpen(true)}
+            title="Стартова сторінка вибору мови та проєкту"
+          >
+            <LayoutGrid size={13} />
+            <span>Projects</span>
+          </button>
+
+          <button
+            className="jb-btn-tool"
             onClick={() => setHistoryOpen(true)}
             title="Database History (PostgreSQL)"
           >
@@ -452,7 +532,13 @@ export default function App() {
           </div>
 
           <div style={{ padding: '6px 8px', fontSize: '11px', color: '#868a91', borderBottom: '1px solid #2b2d30' }}>
-            {language === 'JAVA' ? 'src/main/java/ua/pnu/shop' : language === 'PYTHON' ? 'src/app' : language === 'TYPESCRIPT' ? 'src/services' : 'src/modules'}
+            {language === 'JAVA'
+              ? `src/main/java/${detectedPackage.replace(/\./g, '/')}`
+              : language === 'PYTHON'
+              ? 'src/app'
+              : language === 'TYPESCRIPT'
+              ? 'src/services'
+              : 'src/modules'}
           </div>
 
           <div className="jb-file-tree">
@@ -462,25 +548,38 @@ export default function App() {
                 className={`jb-tree-item ${idx === activeFileIndex ? 'active' : ''}`}
                 onClick={() => setActiveFileIndex(idx)}
               >
-                <FileIcon fileName={file.fileName} size={14} />
-                <span>{file.fileName}</span>
-                {files.length > 1 && (
+                <FileIcon fileName={file.fileName} content={file.content} size={14} />
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.fileName}
+                </span>
+                <div className="jb-tree-item-actions">
                   <button
-                    className="jb-tree-delete"
+                    className="jb-tree-action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFileToRename(file.fileName);
+                      setIsRenameDialogOpen(true);
+                    }}
+                    title="Перейменувати файл"
+                  >
+                    <Edit2 size={11} />
+                  </button>
+                  <button
+                    className="jb-tree-action-btn jb-tree-delete"
                     onClick={(e) => handleDeleteFile(idx, e)}
-                    title="Delete file"
+                    title="Видалити файл"
                   >
                     <Trash2 size={11} />
                   </button>
-                )}
+                </div>
               </div>
             ))}
           </div>
 
           <div className="jb-tree-actions">
-            <button className="jb-btn-add" onClick={handleAddFile}>
+            <button className="jb-btn-add" onClick={() => setIsNewFileDialogOpen(true)}>
               <Plus size={11} />
-              <span>New File</span>
+              <span>New File / Class</span>
             </button>
           </div>
         </aside>
@@ -494,18 +593,24 @@ export default function App() {
                 className={`jb-tab ${idx === activeFileIndex ? 'active' : ''}`}
                 onClick={() => setActiveFileIndex(idx)}
               >
-                <FileIcon fileName={file.fileName} size={13} />
+                <FileIcon fileName={file.fileName} content={file.content} size={13} />
                 <span>{file.fileName}</span>
-                {files.length > 1 && (
-                  <span
-                    className="jb-tab-close"
-                    onClick={(e) => handleDeleteFile(idx, e)}
-                  >
-                    ×
-                  </span>
-                )}
+                <span
+                  className="jb-tab-close"
+                  onClick={(e) => handleDeleteFile(idx, e)}
+                  title="Закрити / видалити файл"
+                >
+                  ×
+                </span>
               </div>
             ))}
+            <button
+              className="jb-tab-add"
+              onClick={() => setIsNewFileDialogOpen(true)}
+              title="Новий файл / клас (Alt+Insert)"
+            >
+              <Plus size={13} />
+            </button>
           </div>
 
           <div className="jb-editor-body">
@@ -1186,6 +1291,41 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Welcome Screen Dialog */}
+      <WelcomeScreen
+        isOpen={isWelcomeOpen}
+        canClose={files.length > 0}
+        onClose={() => setIsWelcomeOpen(false)}
+        currentLanguage={language}
+        currentProjectName={projectName}
+        onOpenProject={handleOpenProjectFromWelcome}
+        onOpenSavedAudit={handleOpenSavedAudit}
+        historyList={historyList}
+        onDeleteHistoryItem={handleDeleteHistoryItem}
+      />
+
+      {/* New File Dialog */}
+      <NewFileDialog
+        isOpen={isNewFileDialogOpen}
+        language={language}
+        currentFiles={files}
+        defaultPackage={detectedPackage}
+        onClose={() => setIsNewFileDialogOpen(false)}
+        onCreate={handleCreateFile}
+      />
+
+      {/* Rename File Dialog */}
+      <RenameFileDialog
+        isOpen={isRenameDialogOpen}
+        currentFileName={fileToRename || ''}
+        currentFiles={files}
+        onClose={() => {
+          setIsRenameDialogOpen(false);
+          setFileToRename(null);
+        }}
+        onRename={handleRenameFile}
+      />
     </div>
   );
 }
