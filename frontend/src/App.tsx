@@ -17,6 +17,8 @@ import {
   Edit2,
   LayoutGrid,
   Compass,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { getSampleProject } from './data/sampleProjects';
 import {
@@ -46,6 +48,18 @@ import type {
   ProgrammingLanguage,
 } from './types/analysis';
 import './App.css';
+
+interface HistorySnapshot {
+  content: string;
+  cursor: number;
+}
+
+interface FileHistory {
+  past: HistorySnapshot[];
+  future: HistorySnapshot[];
+  lastSavedContent: string;
+  lastTypingTime: number;
+}
 
 export default function App() {
   const [projectName, setProjectName] = useState<string>('ShopOrderSystem');
@@ -109,10 +123,157 @@ export default function App() {
     }
   };
 
+  const fileHistoryRef = useRef<Map<string, FileHistory>>(new Map());
+  const [canUndo, setCanUndo] = useState<boolean>(false);
+  const [canRedo, setCanRedo] = useState<boolean>(false);
+
+  const getFileHistory = (fileName: string): FileHistory => {
+    let hist = fileHistoryRef.current.get(fileName);
+    if (!hist) {
+      hist = {
+        past: [],
+        future: [],
+        lastSavedContent: currentFile?.content || '',
+        lastTypingTime: 0,
+      };
+      fileHistoryRef.current.set(fileName, hist);
+    }
+    return hist;
+  };
+
+  const recordHistoryBeforeChange = (
+    fileName: string,
+    oldContent: string,
+    cursor: number,
+    force: boolean = false
+  ) => {
+    const hist = getFileHistory(fileName);
+    const now = Date.now();
+
+    if (force || now - hist.lastTypingTime > 500) {
+      if (oldContent !== hist.lastSavedContent) {
+        hist.past.push({
+          content: oldContent,
+          cursor,
+        });
+        if (hist.past.length > 150) {
+          hist.past.shift();
+        }
+        hist.lastSavedContent = oldContent;
+      }
+    }
+
+    hist.future = [];
+    hist.lastTypingTime = now;
+    setCanUndo(hist.past.length > 0);
+    setCanRedo(false);
+  };
+
+  const handleUndo = () => {
+    if (!currentFile) return;
+    const hist = getFileHistory(currentFile.fileName);
+    if (hist.past.length === 0) return;
+
+    const currentCursor = textareaRef.current?.selectionStart ?? 0;
+    const currentContent = currentFile.content;
+
+    const previous = hist.past.pop();
+    if (!previous) return;
+
+    hist.future.push({
+      content: currentContent,
+      cursor: currentCursor,
+    });
+    if (hist.future.length > 150) {
+      hist.future.shift();
+    }
+
+    hist.lastSavedContent = previous.content;
+    hist.lastTypingTime = 0;
+
+    if (textareaRef.current) {
+      textareaRef.current.value = previous.content;
+      textareaRef.current.setSelectionRange(previous.cursor, previous.cursor);
+    }
+    handleContentChange(previous.content);
+
+    setCanUndo(hist.past.length > 0);
+    setCanRedo(hist.future.length > 0);
+
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.setSelectionRange(previous.cursor, previous.cursor);
+        if (highlightRef.current) {
+          highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+          highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+        }
+      }
+    });
+  };
+
+  const handleRedo = () => {
+    if (!currentFile) return;
+    const hist = getFileHistory(currentFile.fileName);
+    if (hist.future.length === 0) return;
+
+    const currentCursor = textareaRef.current?.selectionStart ?? 0;
+    const currentContent = currentFile.content;
+
+    const next = hist.future.pop();
+    if (!next) return;
+
+    hist.past.push({
+      content: currentContent,
+      cursor: currentCursor,
+    });
+    if (hist.past.length > 150) {
+      hist.past.shift();
+    }
+
+    hist.lastSavedContent = next.content;
+    hist.lastTypingTime = 0;
+
+    if (textareaRef.current) {
+      textareaRef.current.value = next.content;
+      textareaRef.current.setSelectionRange(next.cursor, next.cursor);
+    }
+    handleContentChange(next.content);
+
+    setCanUndo(hist.past.length > 0);
+    setCanRedo(hist.future.length > 0);
+
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.setSelectionRange(next.cursor, next.cursor);
+        if (highlightRef.current) {
+          highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+          highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+        }
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (currentFile) {
+      const hist = fileHistoryRef.current.get(currentFile.fileName);
+      setCanUndo(!!hist && hist.past.length > 0);
+      setCanRedo(!!hist && hist.future.length > 0);
+    }
+  }, [activeFileIndex, currentFile?.fileName]);
+
   const handleContentChange = (content: string) => {
     setFiles((prev) =>
       prev.map((f, i) => (i === activeFileIndex ? { ...f, content } : f))
     );
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    const cursor = e.target.selectionStart;
+    if (currentFile) {
+      recordHistoryBeforeChange(currentFile.fileName, currentFile.content, cursor, false);
+    }
+    handleContentChange(newContent);
   };
 
   const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -124,6 +285,9 @@ export default function App() {
     const value = textarea.value;
 
     const updateEditor = (newText: string, newStart: number, newEnd: number = newStart) => {
+      if (currentFile) {
+        recordHistoryBeforeChange(currentFile.fileName, currentFile.content, start, true);
+      }
       textarea.value = newText;
       textarea.setSelectionRange(newStart, newEnd);
       handleContentChange(newText);
@@ -137,6 +301,22 @@ export default function App() {
         }
       });
     };
+
+    // 0. UNDO & REDO
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      handleUndo();
+      return;
+    }
+
+    if (
+      ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
+      ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')
+    ) {
+      e.preventDefault();
+      handleRedo();
+      return;
+    }
 
     // 1. TAB & SHIFT+TAB
     if (e.key === 'Tab') {
@@ -537,6 +717,21 @@ export default function App() {
         e.preventDefault();
         setIsNewFileDialogOpen(true);
       }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        if (!isNewFileDialogOpen && !isRenameDialogOpen && !isWelcomeOpen) {
+          e.preventDefault();
+          handleUndo();
+        }
+      }
+      if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')
+      ) {
+        if (!isNewFileDialogOpen && !isRenameDialogOpen && !isWelcomeOpen) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
       if (e.ctrlKey && e.key === 'F9') {
         e.preventDefault();
         handleBuildProject();
@@ -552,7 +747,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [files, language, currentFile]);
+  }, [files, language, currentFile, isNewFileDialogOpen, isRenameDialogOpen, isWelcomeOpen]);
 
   const handleSelectHistoryItem = async (id: string) => {
     try {
@@ -816,6 +1011,54 @@ export default function App() {
             >
               <Plus size={13} />
             </button>
+
+            {/* Undo / Redo buttons in Tab Bar */}
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '2px', paddingRight: '8px' }}>
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title="Скасувати (Ctrl+Z)"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: canUndo ? '#dfe1e5' : '#5f6368',
+                  cursor: canUndo ? 'pointer' : 'default',
+                  padding: '3px 6px',
+                  borderRadius: '3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '11px',
+                  opacity: canUndo ? 1 : 0.45,
+                }}
+              >
+                <Undo2 size={13} />
+                <span>Undo</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                disabled={!canRedo}
+                title="Повторити (Ctrl+Y / Ctrl+Shift+Z)"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: canRedo ? '#dfe1e5' : '#5f6368',
+                  cursor: canRedo ? 'pointer' : 'default',
+                  padding: '3px 6px',
+                  borderRadius: '3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '11px',
+                  opacity: canRedo ? 1 : 0.45,
+                }}
+              >
+                <Redo2 size={13} />
+                <span>Redo</span>
+              </button>
+            </div>
           </div>
 
           <div className="jb-editor-body">
@@ -837,7 +1080,7 @@ export default function App() {
                 ref={textareaRef}
                 className="jb-textarea"
                 value={currentFile?.content || ''}
-                onChange={(e) => handleContentChange(e.target.value)}
+                onChange={handleTextareaChange}
                 onKeyDown={handleEditorKeyDown}
                 onScroll={handleScroll}
                 placeholder="// Write or paste code here..."
@@ -853,7 +1096,7 @@ export default function App() {
             <div className="jb-statusbar-right">
               <span>UTF-8</span>
               <span>4 spaces</span>
-              <span>Java 21</span>
+              <span>Ctrl+Z / Ctrl+Y</span>
               <span>Lines: {lineCount}</span>
             </div>
           </footer>

@@ -743,6 +743,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <li><strong style={{ color: '#dfe1e5' }}>Shift + F10</strong> — Запуск застосунку (Run)</li>
                     <li><strong style={{ color: '#dfe1e5' }}>Ctrl + Enter</strong> — Аудит архітектури (Inspect)</li>
                     <li><strong style={{ color: '#dfe1e5' }}>Alt + Insert</strong> — Створення нового файлу / класу</li>
+                    <li><strong style={{ color: '#dfe1e5' }}>Ctrl + Z / Ctrl + Y</strong> — Скасувати / Повторити дію (Undo / Redo)</li>
                   </ul>
                 </div>
               </div>
