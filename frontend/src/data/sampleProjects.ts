@@ -8,8 +8,6 @@ export const SAMPLE_JAVA_PROJECT: CodeFile[] = [
 import java.util.UUID;
 
 public class OrderService {
-
-    // Direct instantiation breaks Dependency Inversion Principle
     private PaymentService paymentService = new PaymentService();
 
     public void processOrder(String orderId, double amount) {
@@ -33,20 +31,16 @@ public class OrderService {
     content: `package ua.pnu.shop.service;
 
 public class PaymentService {
-
-    // Circular dependency: PaymentService references OrderService back
     private OrderService orderService;
 
     public void executePayment(String orderId, double amount) {
         try {
             System.out.println("Executing payment for order " + orderId + ": " + amount);
             
-            // Simulating payment completion callback triggering circular call
             if (orderService != null) {
                 orderService.notifyOrderCompleted(orderId);
             }
         } catch (Exception e) {
-            // Masks unchecked runtime exceptions
             System.err.println("Payment failed: " + e.getMessage());
         }
     }
@@ -59,7 +53,6 @@ public class PaymentService {
 
 import java.util.Objects;
 
-// Redundant boilerplate POJO that could be a Java 21 record
 public class CustomerDto {
     private String id;
     private String name;
@@ -103,11 +96,9 @@ export const SAMPLE_PYTHON_PROJECT: CodeFile[] = [
 
 class OrderService:
     def __init__(self):
-        # Direct instantiation causes tight coupling
         self.payment = PaymentService()
 
     def processOrder(self, order_id: str, items=[]):
-        # Mutable default argument bug & camelCase PEP8 violation
         print("Processing order: " + order_id)
         return self.payment.execute_payment(order_id, items)
 
@@ -121,7 +112,6 @@ class OrderService:
 
 class PaymentService:
     def __init__(self):
-        # Circular import relationship with order_service
         self.orders = OrderService()
 
     def execute_payment(self, order_id: str, items):
@@ -130,7 +120,6 @@ class PaymentService:
             self.orders.on_complete(order_id)
             return True
         except:
-            # Bare except masks system interrupts and bugs
             print("Payment execution failed")
             return False
 `,
@@ -151,11 +140,9 @@ export const SAMPLE_TYPESCRIPT_PROJECT: CodeFile[] = [
     content: `import { PaymentService } from './PaymentService';
 
 export class OrderService {
-    // Direct instantiation breaks Dependency Inversion
     private paymentService = new PaymentService();
 
     public processOrder(orderId: string, metadata: any) {
-        // Deprecated 'var' and loose equality
         var isPriority = metadata.priority == true;
         
         console.log("Processing order " + orderId);
@@ -173,7 +160,6 @@ export class OrderService {
     content: `import { OrderService } from './OrderService';
 
 export class PaymentService {
-    // Circular dependency with OrderService
     private orderService: OrderService | null = null;
 
     public charge(orderId: string, priority: boolean): boolean {
