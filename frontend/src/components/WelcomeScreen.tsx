@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import {
   FolderCode,
+  Compass,
   Clock,
   Info,
   Database,
   ArrowRight,
   Plus,
-  RotateCcw,
   Trash2,
   X,
 } from 'lucide-react';
@@ -23,7 +23,7 @@ interface WelcomeScreenProps {
     language: ProgrammingLanguage;
     projectName: string;
     files: CodeFile[];
-    mode: 'custom' | 'sample' | 'blank';
+    mode: 'custom' | 'sample' | 'blank' | 'tutorial';
   }) => void;
   onOpenSavedAudit: (id: string) => Promise<void>;
   historyList: AnalysisHistoryItem[];
@@ -41,7 +41,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   historyList,
   onDeleteHistoryItem,
 }) => {
-  const [activeTab, setActiveTab] = useState<'projects' | 'history' | 'about'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'tutorial' | 'history' | 'about'>('projects');
   const [selectedLanguage, setSelectedLanguage] = useState<ProgrammingLanguage>(currentLanguage);
   const [projectName, setProjectName] = useState(currentProjectName || 'SmartCodeApp');
   const [packageName, setPackageName] = useState('ua.pnu.app');
@@ -65,22 +65,22 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     });
   };
 
-  const handleLoadDemoSample = () => {
+  const handleLaunchTutorial = () => {
     const files = getSampleProject(selectedLanguage);
     const demoName =
       selectedLanguage === 'JAVA'
-        ? 'ShopOrderSystem (Java 21 Demo)'
+        ? 'ShopOrderSystem (Interactive Tutorial)'
         : selectedLanguage === 'PYTHON'
-        ? 'OrderProcessingApp (Python Demo)'
+        ? 'OrderProcessingApp (Interactive Tutorial)'
         : selectedLanguage === 'TYPESCRIPT'
-        ? 'PaymentServiceTS (TypeScript Demo)'
-        : 'PaymentServiceJS (JavaScript Demo)';
+        ? 'PaymentServiceTS (Interactive Tutorial)'
+        : 'PaymentServiceJS (Interactive Tutorial)';
 
     onOpenProject({
       language: selectedLanguage,
       projectName: demoName,
       files,
-      mode: 'sample',
+      mode: 'tutorial',
     });
   };
 
@@ -142,9 +142,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     >
       <div
         style={{
-          width: '920px',
+          width: '940px',
           maxWidth: '100%',
-          height: '620px',
+          height: '630px',
           maxHeight: '94vh',
           backgroundColor: '#1e1f22',
           border: '1px solid #393b40',
@@ -236,6 +236,39 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               </button>
 
               <button
+                onClick={() => setActiveTab('tutorial')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '9px 12px',
+                  borderRadius: '6px',
+                  background: activeTab === 'tutorial' ? '#2e436e' : 'transparent',
+                  color: activeTab === 'tutorial' ? '#ffffff' : '#9da0a8',
+                  fontSize: '12px',
+                  fontWeight: activeTab === 'tutorial' ? 600 : 400,
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Compass size={15} color={activeTab === 'tutorial' ? '#70a5f9' : '#868a91'} />
+                <span>Інтерактивний тур</span>
+                <span
+                  style={{
+                    marginLeft: 'auto',
+                    background: '#59a869',
+                    color: '#ffffff',
+                    fontSize: '9px',
+                    padding: '1px 5px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                  }}
+                >
+                  DEMO
+                </span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('history')}
                 style={{
                   display: 'flex',
@@ -313,12 +346,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         >
           {activeTab === 'projects' && (
             <div>
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '18px' }}>
                 <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#dfe1e5', marginBottom: '4px' }}>
-                  Створення або вибір проєкту
+                  Створення власного проєкту
                 </h1>
                 <p style={{ fontSize: '12px', color: '#9da0a8' }}>
-                  Оберіть цільову мову програмування та розпочніть роботу з чистим або демонстраційним проєктом:
+                  Оберіть мову програмування та налаштуйте початкові параметри. У проєкті не буде жодного тестового демо-коду.
                 </p>
               </div>
 
@@ -328,7 +361,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: '12px',
-                  marginBottom: '24px',
+                  marginBottom: '20px',
                 }}
               >
                 {languages.map((lang) => {
@@ -338,7 +371,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       key={lang.id}
                       onClick={() => setSelectedLanguage(lang.id)}
                       style={{
-                        padding: '14px',
+                        padding: '12px 14px',
                         borderRadius: '8px',
                         backgroundColor: isSelected ? '#262930' : '#232529',
                         border: isSelected ? '2px solid #3574f0' : '1px solid #32353a',
@@ -351,7 +384,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       }}
                     >
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                           <span style={{ fontSize: '14px', fontWeight: 700, color: '#dfe1e5' }}>
                             {lang.name}
                           </span>
@@ -368,7 +401,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             {lang.version}
                           </span>
                         </div>
-                        <p style={{ fontSize: '11px', color: '#868a91', marginBottom: '8px', lineHeight: 1.3 }}>
+                        <p style={{ fontSize: '11px', color: '#868a91', marginBottom: '6px', lineHeight: 1.3 }}>
                           {lang.tagline}
                         </p>
                       </div>
@@ -408,7 +441,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: '#dfe1e5' }}>
-                    Параметри нового проєкту ({selectedLanguage})
+                    Параметри проєкту ({selectedLanguage})
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
@@ -423,7 +456,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         border: '1px solid #393b40',
                       }}
                     >
-                      Каркас (Starter)
+                      Стартовий каркас
                     </button>
                     <button
                       type="button"
@@ -437,7 +470,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         border: '1px solid #393b40',
                       }}
                     >
-                      Чистий проєкт (Blank)
+                      Повністю чистий (Blank)
                     </button>
                   </div>
                 </div>
@@ -490,16 +523,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                   <button
                     onClick={handleCreateCustom}
                     style={{
-                      flex: 1,
+                      width: '100%',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '8px',
-                      padding: '10px 16px',
+                      padding: '11px 18px',
                       backgroundColor: '#3574f0',
                       color: '#ffffff',
                       borderRadius: '6px',
@@ -513,25 +546,121 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <ArrowRight size={14} />
                   </button>
 
-                  <button
-                    onClick={handleLoadDemoSample}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '10px 16px',
-                      backgroundColor: '#2b2d30',
-                      color: '#dfe1e5',
-                      border: '1px solid #393b40',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                    }}
-                    title="Завантажити зразок з архітектурними проблемами (God Class, Circular Dependency) для демонстрації комісії"
-                  >
-                    <RotateCcw size={14} />
-                    <span>Відкрити демо-шаблон</span>
-                  </button>
+                  <div style={{ fontSize: '11px', color: '#868a91', textAlign: 'center' }}>
+                    Потрібна демонстрація виявлення дефектів архітектури для комісії?{' '}
+                    <span
+                      onClick={() => setActiveTab('tutorial')}
+                      style={{ color: '#70a5f9', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Перейдіть до Інтерактивного туторіалу →
+                    </span>
+                  </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'tutorial' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <Compass size={18} color="#70a5f9" />
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#dfe1e5', margin: 0 }}>
+                    Інтерактивний навчальний тур (Демо-режим)
+                  </h2>
+                </div>
+                <p style={{ fontSize: '12px', color: '#9da0a8', margin: 0 }}>
+                  Окремий сценарій із покроковими підказками на кожному етапі для наочної демонстрації системи комісії.
+                </p>
+              </div>
+
+              {/* Language selection for tutorial */}
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#9da0a8', marginBottom: '8px', fontWeight: 600 }}>
+                  Оберіть мову для проходження туторіалу:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                  {languages.map((l) => (
+                    <button
+                      key={l.id}
+                      onClick={() => setSelectedLanguage(l.id)}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '6px',
+                        background: selectedLanguage === l.id ? '#2e436e' : '#26282e',
+                        border: selectedLanguage === l.id ? '2px solid #3574f0' : '1px solid #393b40',
+                        color: selectedLanguage === l.id ? '#ffffff' : '#dfe1e5',
+                        fontSize: '12px',
+                        fontWeight: selectedLanguage === l.id ? 700 : 500,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {l.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tutorial Steps Preview Cards */}
+              <div
+                style={{
+                  backgroundColor: '#26282e',
+                  border: '1px solid #393b40',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#dfe1e5', marginBottom: '2px' }}>
+                  Етапи, які будуть показані у навчальному турі:
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11.5px', color: '#c4c7cf' }}>
+                    <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#1e3a5f', color: '#70a5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '10px' }}>1</span>
+                    <span><strong>Дерево файлів:</strong> Огляд класів, зв'язків та бейджів у стилі IntelliJ IDEA</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11.5px', color: '#c4c7cf' }}>
+                    <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#1b4d3e', color: '#6ee7b7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '10px' }}>2</span>
+                    <span><strong>Створення файлу:</strong> Додавання Java 21 Record, Enum чи Interface з власним ім'ям</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11.5px', color: '#c4c7cf' }}>
+                    <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#593a17', color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '10px' }}>3</span>
+                    <span><strong>In-Memory Build:</strong> Компіляція коду в оперативній пам'яті через javac 21</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11.5px', color: '#c4c7cf' }}>
+                    <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#2e436e', color: '#70a5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '10px' }}>4</span>
+                    <span><strong>Аудит коду:</strong> Розрахунок Maintainability Index (MI), Cyclomatic Complexity</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11.5px', color: '#c4c7cf' }}>
+                    <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#1b4d3e', color: '#59a869', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '10px' }}>5</span>
+                    <span><strong>Запуск та тести:</strong> Виконання коду у процесі та запуск автозгенерованих тестів</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleLaunchTutorial}
+                  style={{
+                    marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '11px 18px',
+                    backgroundColor: '#59a869',
+                    color: '#ffffff',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 14px rgba(89, 168, 105, 0.35)',
+                  }}
+                >
+                  <Compass size={16} />
+                  <span>Запустити інтерактивний тур ({selectedLanguage})</span>
+                  <ArrowRight size={14} />
+                </button>
               </div>
             </div>
           )}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Play,
-  RotateCcw,
   FolderTree,
   Plus,
   Trash2,
@@ -17,6 +16,7 @@ import {
   Printer,
   Edit2,
   LayoutGrid,
+  Compass,
 } from 'lucide-react';
 import { getSampleProject } from './data/sampleProjects';
 import {
@@ -33,6 +33,7 @@ import { FileIcon } from './components/FileIcon';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { NewFileDialog } from './components/NewFileDialog';
 import { RenameFileDialog } from './components/RenameFileDialog';
+import { TutorialGuide } from './components/TutorialGuide';
 import { generateMarkdownReport, downloadMarkdownReport, printAuditReport } from './utils/reportExporter';
 import type {
   AnalysisFocus,
@@ -49,6 +50,8 @@ import './App.css';
 export default function App() {
   const [projectName, setProjectName] = useState<string>('ShopOrderSystem');
   const [isWelcomeOpen, setIsWelcomeOpen] = useState<boolean>(true);
+  const [isTutorialActive, setIsTutorialActive] = useState<boolean>(false);
+  const [tutorialStep, setTutorialStep] = useState<number>(1);
   const [isNewFileDialogOpen, setIsNewFileDialogOpen] = useState<boolean>(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState<boolean>(false);
   const [fileToRename, setFileToRename] = useState<string | null>(null);
@@ -163,32 +166,11 @@ export default function App() {
     }
   };
 
-  const handleLanguageChange = (newLang: ProgrammingLanguage) => {
-    setLanguage(newLang);
-    setFiles(getSampleProject(newLang));
-    setActiveFileIndex(0);
-    setResponse(null);
-    setCompilationResult(null);
-    setExecutionResult(null);
-    setTestExecutionResult(null);
-    setError(null);
-  };
-
-  const handleLoadSample = () => {
-    setFiles(getSampleProject(language));
-    setActiveFileIndex(0);
-    setResponse(null);
-    setCompilationResult(null);
-    setExecutionResult(null);
-    setTestExecutionResult(null);
-    setError(null);
-  };
-
   const handleOpenProjectFromWelcome = (config: {
     language: ProgrammingLanguage;
     projectName: string;
     files: CodeFile[];
-    mode: 'custom' | 'sample' | 'blank';
+    mode: 'custom' | 'sample' | 'blank' | 'tutorial';
   }) => {
     setLanguage(config.language);
     setProjectName(config.projectName);
@@ -200,6 +182,13 @@ export default function App() {
     setTestExecutionResult(null);
     setError(null);
     setIsWelcomeOpen(false);
+    if (config.mode === 'tutorial') {
+      setIsTutorialActive(true);
+      setTutorialStep(1);
+    } else {
+      setIsTutorialActive(false);
+      setTutorialStep(1);
+    }
   };
 
   const handleOpenSavedAudit = async (id: string) => {
@@ -209,6 +198,7 @@ export default function App() {
       setResponse(pastReport);
       setLanguage(pastReport.language);
       setIsWelcomeOpen(false);
+      setIsTutorialActive(false);
       setActiveTab('insights');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Не вдалося завантажити збережений звіт');
@@ -431,17 +421,29 @@ export default function App() {
         </div>
 
         <div className="jb-toolbar-center">
-          <span className="jb-control-label">Language:</span>
-          <select
-            className="jb-select"
-            value={language}
-            onChange={(e) => handleLanguageChange(e.target.value as ProgrammingLanguage)}
+          <button
+            className="jb-lang-badge"
+            onClick={() => setIsWelcomeOpen(true)}
+            title="Мова зафіксована для поточного проєкту. Натисніть, щоб повернутися назад та обрати іншу мову"
           >
-            <option value="JAVA">Java (Java 21 / Spring)</option>
-            <option value="PYTHON">Python</option>
-            <option value="TYPESCRIPT">TypeScript</option>
-            <option value="JAVASCRIPT">JavaScript</option>
-          </select>
+            <span style={{ fontSize: '13px' }}>
+              {language === 'JAVA' ? '☕' : language === 'PYTHON' ? '🐍' : language === 'TYPESCRIPT' ? '🔷' : '🟨'}
+            </span>
+            <span style={{ fontWeight: 600 }}>
+              {language === 'JAVA' ? 'Java 21 LTS' : language === 'PYTHON' ? 'Python 3.12' : language === 'TYPESCRIPT' ? 'TypeScript' : 'JavaScript'}
+            </span>
+          </button>
+
+          {isTutorialActive && (
+            <button
+              className="jb-tutorial-chip"
+              onClick={() => setTutorialStep((s) => (s % 5) + 1)}
+              title="Інтерактивний туторіал активний. Клікніть для наступного кроку"
+            >
+              <Compass size={12} />
+              <span>Тур: Крок {tutorialStep}/5</span>
+            </button>
+          )}
 
           <span className="jb-control-label" style={{ marginLeft: '8px' }}>Profile:</span>
           <select
@@ -489,6 +491,18 @@ export default function App() {
         </div>
 
         <div className="jb-toolbar-right">
+          {isTutorialActive && (
+            <button
+              className="jb-btn-tool"
+              onClick={() => setIsTutorialActive(false)}
+              title="Завершити навчальний тур"
+              style={{ color: '#f5a623' }}
+            >
+              <X size={13} />
+              <span>Завершити тур</span>
+            </button>
+          )}
+
           <button
             className="jb-btn-tool"
             onClick={() => setIsWelcomeOpen(true)}
@@ -506,11 +520,6 @@ export default function App() {
             <Database size={13} />
             <span>History</span>
             {historyList.length > 0 && <span className="jb-badge">{historyList.length}</span>}
-          </button>
-
-          <button className="jb-btn-tool" onClick={handleLoadSample} title="Reset to Sample Demo Project">
-            <RotateCcw size={13} />
-            <span>Reset Demo</span>
           </button>
         </div>
       </header>
@@ -1325,6 +1334,16 @@ export default function App() {
           setFileToRename(null);
         }}
         onRename={handleRenameFile}
+      />
+
+      {/* Interactive Guided Tour / Tutorial */}
+      <TutorialGuide
+        active={isTutorialActive}
+        currentStep={tutorialStep}
+        language={language}
+        onNext={() => setTutorialStep((s) => Math.min(5, s + 1))}
+        onPrev={() => setTutorialStep((s) => Math.max(1, s - 1))}
+        onClose={() => setIsTutorialActive(false)}
       />
     </div>
   );
