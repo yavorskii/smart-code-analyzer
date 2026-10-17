@@ -302,7 +302,6 @@ export default function App() {
       });
     };
 
-    // 0. UNDO & REDO
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
       e.preventDefault();
       handleUndo();
@@ -318,11 +317,9 @@ export default function App() {
       return;
     }
 
-    // 1. TAB & SHIFT+TAB
     if (e.key === 'Tab') {
       e.preventDefault();
 
-      // Multi-line selection
       if (start !== end && value.slice(start, end).includes('\n')) {
         const lineStart = value.lastIndexOf('\n', start - 1) + 1;
         let lineEnd = value.indexOf('\n', end);
@@ -352,7 +349,6 @@ export default function App() {
         const updated = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
         updateEditor(updated, lineStart, Math.max(lineStart, lineEnd + delta));
       } else {
-        // Single cursor or single line
         if (e.shiftKey) {
           const lineStart = value.lastIndexOf('\n', start - 1) + 1;
           const match = value.slice(lineStart).match(/^ {1,4}/);
@@ -363,7 +359,6 @@ export default function App() {
             updateEditor(updated, newPos, Math.max(lineStart, end - count));
           }
         } else {
-          // Tab: insert 4 spaces at cursor without losing focus
           const updated = value.slice(0, start) + '    ' + value.slice(end);
           updateEditor(updated, start + 4, start + 4);
         }
@@ -371,7 +366,6 @@ export default function App() {
       return;
     }
 
-    // 2. ENTER: Smart auto-indent and brace expansion
     if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
 
@@ -383,7 +377,6 @@ export default function App() {
       const charBefore = start > 0 ? value[start - 1] : '';
       const charAfter = end < value.length ? value[end] : '';
 
-      // Case 2A: Enter between braces: { | }
       if (charBefore === '{' && charAfter === '}') {
         const innerIndent = currentIndent + '    ';
         const inserted = '\n' + innerIndent + '\n' + currentIndent;
@@ -393,7 +386,6 @@ export default function App() {
         return;
       }
 
-      // Case 2B: Enter after opening brace or colon (Python)
       const trimmedLine = currentLine.trim();
       const opensBlock =
         charBefore === '{' ||
@@ -409,7 +401,6 @@ export default function App() {
         return;
       }
 
-      // Case 2C: Inherit previous indentation
       const inserted = '\n' + currentIndent;
       const updated = value.slice(0, start) + inserted + value.slice(end);
       const cursorTarget = start + inserted.length;
@@ -417,12 +408,10 @@ export default function App() {
       return;
     }
 
-    // 3. BACKSPACE: Smart un-indent and auto-closing pair deletion
     if (e.key === 'Backspace' && start === end && start > 0) {
       const b = value[start - 1];
       const a = value[start];
 
-      // 3A: Delete matching pair if cursor is between them: {}, (), [], "", ''
       if (
         (b === '{' && a === '}') ||
         (b === '(' && a === ')') ||
@@ -436,7 +425,6 @@ export default function App() {
         return;
       }
 
-      // 3B: Smart delete 4 spaces indentation if only spaces precede cursor on current line
       const lineStart = value.lastIndexOf('\n', start - 1) + 1;
       const lineBefore = value.slice(lineStart, start);
       if (lineBefore.length > 0 && /^ +$/.test(lineBefore)) {
@@ -448,7 +436,6 @@ export default function App() {
       }
     }
 
-    // 4. Auto un-indent on typing closing brace '}' when line is only whitespace
     if (e.key === '}' && start === end && !e.ctrlKey && !e.metaKey) {
       const lineStart = value.lastIndexOf('\n', start - 1) + 1;
       const lineBefore = value.slice(lineStart, start);
@@ -460,14 +447,12 @@ export default function App() {
       }
     }
 
-    // 5. Skip over closing character if user types it and it already matches next character
     if (['}', ')', ']', '"', "'"].includes(e.key) && start === end && value[start] === e.key) {
       e.preventDefault();
       textarea.setSelectionRange(start + 1, start + 1);
       return;
     }
 
-    // 6. Auto-closing pairs
     const pairs: Record<string, string> = {
       '(': ')',
       '[': ']',
