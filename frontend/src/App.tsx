@@ -115,7 +115,203 @@ export default function App() {
     );
   };
 
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
 
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+
+    const updateEditor = (newText: string, newStart: number, newEnd: number = newStart) => {
+      textarea.value = newText;
+      textarea.setSelectionRange(newStart, newEnd);
+      handleContentChange(newText);
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.setSelectionRange(newStart, newEnd);
+          if (highlightRef.current) {
+            highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+            highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+          }
+        }
+      });
+    };
+
+    // 1. TAB & SHIFT+TAB
+    if (e.key === 'Tab') {
+      e.preventDefault();
+
+      // Multi-line selection
+      if (start !== end && value.slice(start, end).includes('\n')) {
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        let lineEnd = value.indexOf('\n', end);
+        if (lineEnd === -1) lineEnd = value.length;
+
+        const lines = value.slice(lineStart, lineEnd).split('\n');
+        let delta = 0;
+        let modifiedLines: string[];
+
+        if (e.shiftKey) {
+          modifiedLines = lines.map((line) => {
+            const m = line.match(/^ {1,4}/);
+            if (m) {
+              delta -= m[0].length;
+              return line.slice(m[0].length);
+            }
+            return line;
+          });
+        } else {
+          modifiedLines = lines.map((line) => {
+            delta += 4;
+            return '    ' + line;
+          });
+        }
+
+        const newBlock = modifiedLines.join('\n');
+        const updated = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
+        updateEditor(updated, lineStart, Math.max(lineStart, lineEnd + delta));
+      } else {
+        // Single cursor or single line
+        if (e.shiftKey) {
+          const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+          const match = value.slice(lineStart).match(/^ {1,4}/);
+          if (match) {
+            const count = match[0].length;
+            const updated = value.slice(0, lineStart) + value.slice(lineStart + count);
+            const newPos = Math.max(lineStart, start - count);
+            updateEditor(updated, newPos, Math.max(lineStart, end - count));
+          }
+        } else {
+          // Tab: insert 4 spaces at cursor without losing focus
+          const updated = value.slice(0, start) + '    ' + value.slice(end);
+          updateEditor(updated, start + 4, start + 4);
+        }
+      }
+      return;
+    }
+
+    // 2. ENTER: Smart auto-indent and brace expansion
+    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const currentLine = value.slice(lineStart, start);
+      const indentMatch = currentLine.match(/^[ \t]*/);
+      const currentIndent = indentMatch ? indentMatch[0] : '';
+
+      const charBefore = start > 0 ? value[start - 1] : '';
+      const charAfter = end < value.length ? value[end] : '';
+
+      // Case 2A: Enter between braces: { | }
+      if (charBefore === '{' && charAfter === '}') {
+        const innerIndent = currentIndent + '    ';
+        const inserted = '\n' + innerIndent + '\n' + currentIndent;
+        const updated = value.slice(0, start) + inserted + value.slice(end);
+        const cursorTarget = start + 1 + innerIndent.length;
+        updateEditor(updated, cursorTarget, cursorTarget);
+        return;
+      }
+
+      // Case 2B: Enter after opening brace or colon (Python)
+      const trimmedLine = currentLine.trim();
+      const opensBlock =
+        charBefore === '{' ||
+        trimmedLine.endsWith('{') ||
+        (language === 'PYTHON' && (charBefore === ':' || trimmedLine.endsWith(':')));
+
+      if (opensBlock) {
+        const nextIndent = currentIndent + '    ';
+        const inserted = '\n' + nextIndent;
+        const updated = value.slice(0, start) + inserted + value.slice(end);
+        const cursorTarget = start + inserted.length;
+        updateEditor(updated, cursorTarget, cursorTarget);
+        return;
+      }
+
+      // Case 2C: Inherit previous indentation
+      const inserted = '\n' + currentIndent;
+      const updated = value.slice(0, start) + inserted + value.slice(end);
+      const cursorTarget = start + inserted.length;
+      updateEditor(updated, cursorTarget, cursorTarget);
+      return;
+    }
+
+    // 3. BACKSPACE: Smart un-indent and auto-closing pair deletion
+    if (e.key === 'Backspace' && start === end && start > 0) {
+      const b = value[start - 1];
+      const a = value[start];
+
+      // 3A: Delete matching pair if cursor is between them: {}, (), [], "", ''
+      if (
+        (b === '{' && a === '}') ||
+        (b === '(' && a === ')') ||
+        (b === '[' && a === ']') ||
+        (b === '"' && a === '"') ||
+        (b === "'" && a === "'")
+      ) {
+        e.preventDefault();
+        const updated = value.slice(0, start - 1) + value.slice(start + 1);
+        updateEditor(updated, start - 1, start - 1);
+        return;
+      }
+
+      // 3B: Smart delete 4 spaces indentation if only spaces precede cursor on current line
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lineBefore = value.slice(lineStart, start);
+      if (lineBefore.length > 0 && /^ +$/.test(lineBefore)) {
+        e.preventDefault();
+        const deleteCount = lineBefore.length % 4 === 0 ? 4 : lineBefore.length % 4;
+        const updated = value.slice(0, start - deleteCount) + value.slice(start);
+        updateEditor(updated, start - deleteCount, start - deleteCount);
+        return;
+      }
+    }
+
+    // 4. Auto un-indent on typing closing brace '}' when line is only whitespace
+    if (e.key === '}' && start === end && !e.ctrlKey && !e.metaKey) {
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lineBefore = value.slice(lineStart, start);
+      if (/^ {4,}$/.test(lineBefore)) {
+        e.preventDefault();
+        const updated = value.slice(0, start - 4) + '}' + value.slice(end);
+        updateEditor(updated, start - 3, start - 3);
+        return;
+      }
+    }
+
+    // 5. Skip over closing character if user types it and it already matches next character
+    if (['}', ')', ']', '"', "'"].includes(e.key) && start === end && value[start] === e.key) {
+      e.preventDefault();
+      textarea.setSelectionRange(start + 1, start + 1);
+      return;
+    }
+
+    // 6. Auto-closing pairs
+    const pairs: Record<string, string> = {
+      '(': ')',
+      '[': ']',
+      '{': '}',
+      '"': '"',
+      "'": "'",
+    };
+
+    if (pairs[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      const closing = pairs[e.key];
+      if (start !== end) {
+        const selected = value.slice(start, end);
+        const wrapped = e.key + selected + closing;
+        const updated = value.slice(0, start) + wrapped + value.slice(end);
+        updateEditor(updated, start + 1, start + 1 + selected.length);
+      } else {
+        const inserted = e.key + closing;
+        const updated = value.slice(0, start) + inserted + value.slice(end);
+        updateEditor(updated, start + 1, start + 1);
+      }
+      return;
+    }
+  };
   const handleCreateFile = (newFile: CodeFile) => {
     setFiles((prev) => [...prev, newFile]);
     setActiveFileIndex(files.length);
@@ -199,16 +395,7 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.altKey && e.key === 'Insert') || (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'n')) {
-        e.preventDefault();
-        setIsNewFileDialogOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+
 
   const handleBuildProject = async () => {
     setCompiling(true);
@@ -343,6 +530,29 @@ export default function App() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.altKey && e.key === 'Insert') || (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'n')) {
+        e.preventDefault();
+        setIsNewFileDialogOpen(true);
+      }
+      if (e.ctrlKey && e.key === 'F9') {
+        e.preventDefault();
+        handleBuildProject();
+      }
+      if (e.shiftKey && e.key === 'F10') {
+        e.preventDefault();
+        handleRunCode();
+      }
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        handleRunAnalysis();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [files, language, currentFile]);
 
   const handleSelectHistoryItem = async (id: string) => {
     try {
@@ -628,6 +838,7 @@ export default function App() {
                 className="jb-textarea"
                 value={currentFile?.content || ''}
                 onChange={(e) => handleContentChange(e.target.value)}
+                onKeyDown={handleEditorKeyDown}
                 onScroll={handleScroll}
                 placeholder="// Write or paste code here..."
                 spellCheck={false}
