@@ -321,7 +321,7 @@ export function printAuditReport(response: AnalysisResponse, files: CodeFile[]):
   ` : ''}
 
   <div class="footer">
-    Кваліфікаційна робота на здобуття ступеня бакалавра за спеціальністю 121 «Інженерія програмного забезпечення»<br>
+    Smart Code Analyzer • Architectural Audit & Quality Inspection Engine<br>
     Згенеровано автоматично програмною системою Smart Code Analyzer
   </div>
 

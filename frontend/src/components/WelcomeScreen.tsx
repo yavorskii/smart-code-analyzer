@@ -486,7 +486,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   </button>
 
                   <div style={{ fontSize: '11px', color: '#868a91', textAlign: 'center' }}>
-                    Потрібна демонстрація виявлення дефектів архітектури для комісії?{' '}
+                    Бажаєте швидко ознайомитися з можливостями аналізатора?{' '}
                     <span
                       onClick={() => setActiveTab('tutorial')}
                       style={{ color: '#70a5f9', cursor: 'pointer', textDecoration: 'underline' }}
@@ -509,7 +509,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   </h2>
                 </div>
                 <p style={{ fontSize: '12px', color: '#9da0a8', margin: 0 }}>
-                  Окремий сценарій із покроковими підказками на кожному етапі для наочної демонстрації системи комісії.
+                  Окремий сценарій із покроковими підказками на кожному етапі для наочного знайомства з архітектурним аудитом.
                 </p>
               </div>
 
@@ -707,10 +707,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '12px', color: '#c9ccd4' }}>
               <div>
                 <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#dfe1e5', marginBottom: '6px' }}>
-                  Про кваліфікаційну систему Smart Code Analyzer
+                  Про систему Smart Code Analyzer
                 </h2>
                 <p style={{ lineHeight: 1.5, color: '#9da0a8' }}>
-                  Програмна система розроблена в межах кваліфікаційної (дипломної) роботи на здобуття першого (бакалаврського) рівня вищої освіти за спеціальністю <strong>121 «Інженерія програмного забезпечення»</strong> у Прикарпатському національному університеті імені Василя Стефаника.
+                  Smart Code Analyzer — це багатомовна веб-платформа для статичного аналізу коду, аудиту програмної архітектури, розрахунку інженерних метрик якості (Maintainability Index, Cyclomatic Complexity), компіляції та автоматичного тестування проєктів.
                 </p>
               </div>
 
