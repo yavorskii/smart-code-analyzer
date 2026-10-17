@@ -10,7 +10,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { getSampleProject, getStarterProject, getBlankProject } from '../data/sampleProjects';
+import { getSampleProject, getBlankProject } from '../data/sampleProjects';
 import type { CodeFile, ProgrammingLanguage, AnalysisHistoryItem } from '../types/analysis';
 
 interface WelcomeScreenProps {
@@ -44,24 +44,18 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'projects' | 'tutorial' | 'history' | 'about'>('projects');
   const [selectedLanguage, setSelectedLanguage] = useState<ProgrammingLanguage>(currentLanguage);
   const [projectName, setProjectName] = useState(currentProjectName || 'SmartCodeApp');
-  const [packageName, setPackageName] = useState('ua.pnu.app');
-  const [projectTemplate, setProjectTemplate] = useState<'starter' | 'blank'>('starter');
 
   if (!isOpen) return null;
 
   const handleCreateCustom = () => {
     const name = projectName.trim() || 'MyProject';
-    const pkg = packageName.trim() || 'ua.pnu.app';
-    const files =
-      projectTemplate === 'blank'
-        ? getBlankProject(selectedLanguage, name, pkg)
-        : getStarterProject(selectedLanguage, name, pkg);
+    const files = getBlankProject(selectedLanguage);
 
     onOpenProject({
       language: selectedLanguage,
       projectName: name,
       files,
-      mode: projectTemplate === 'blank' ? 'blank' : 'custom',
+      mode: 'custom',
     });
   };
 
@@ -439,88 +433,33 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   gap: '14px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#dfe1e5' }}>
-                    Параметри проєкту ({selectedLanguage})
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setProjectTemplate('starter')}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        background: projectTemplate === 'starter' ? '#3574f0' : '#1e1f22',
-                        color: projectTemplate === 'starter' ? '#ffffff' : '#9da0a8',
-                        border: '1px solid #393b40',
-                      }}
-                    >
-                      Стартовий каркас
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProjectTemplate('blank')}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        background: projectTemplate === 'blank' ? '#3574f0' : '#1e1f22',
-                        color: projectTemplate === 'blank' ? '#ffffff' : '#9da0a8',
-                        border: '1px solid #393b40',
-                      }}
-                    >
-                      Повністю чистий (Blank)
-                    </button>
-                  </div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#dfe1e5' }}>
+                  Створення проєкту ({selectedLanguage})
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: selectedLanguage === 'JAVA' ? '1fr 1fr' : '1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#9da0a8', marginBottom: '4px' }}>
-                      Назва проєкту:
-                    </label>
-                    <input
-                      type="text"
-                      value={projectName}
-                      onChange={(e) => setProjectName(e.target.value)}
-                      placeholder="e.g. StudentPortal, PaymentSystem"
-                      style={{
-                        width: '100%',
-                        background: '#1e1f22',
-                        border: '1px solid #393b40',
-                        borderRadius: '4px',
-                        padding: '7px 10px',
-                        color: '#dfe1e5',
-                        fontSize: '12px',
-                        outline: 'none',
-                      }}
-                    />
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#9da0a8', marginBottom: '6px' }}>
+                    Назва проєкту:
+                  </label>
+                  <input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="e.g. StudentPortal, PaymentSystem"
+                    style={{
+                      width: '100%',
+                      background: '#1e1f22',
+                      border: '1px solid #393b40',
+                      borderRadius: '4px',
+                      padding: '8px 12px',
+                      color: '#dfe1e5',
+                      fontSize: '12.5px',
+                      outline: 'none',
+                    }}
+                  />
+                  <div style={{ fontSize: '11px', color: '#868a91', marginTop: '6px' }}>
+                    Буде створено базовий файл із мінімальною точкою входу Hello, World без надлишкових пакетів.
                   </div>
-
-                  {selectedLanguage === 'JAVA' && (
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#9da0a8', marginBottom: '4px' }}>
-                        Базовий Java-пакет:
-                      </label>
-                      <input
-                        type="text"
-                        value={packageName}
-                        onChange={(e) => setPackageName(e.target.value)}
-                        placeholder="ua.pnu.app"
-                        style={{
-                          width: '100%',
-                          background: '#1e1f22',
-                          border: '1px solid #393b40',
-                          borderRadius: '4px',
-                          padding: '7px 10px',
-                          color: '#dfe1e5',
-                          fontSize: '12px',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                  )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>

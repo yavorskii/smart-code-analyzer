@@ -247,38 +247,34 @@ export function getSampleProject(language: ProgrammingLanguage): CodeFile[] {
   }
 }
 
-export function getBlankProject(
-  language: ProgrammingLanguage,
-  projectName = 'SmartCodeApp',
-  packageName = 'ua.pnu.app'
-): CodeFile[] {
+export function getBlankProject(language: ProgrammingLanguage): CodeFile[] {
   switch (language) {
     case 'JAVA':
       return [
         {
           fileName: 'Main.java',
-          content: `package ${packageName};\n\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello from ${projectName}!");\n    }\n}\n`,
+          content: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}\n`,
         },
       ];
     case 'PYTHON':
       return [
         {
           fileName: 'main.py',
-          content: `def main():\n    print("Hello from ${projectName}!")\n\nif __name__ == '__main__':\n    main()\n`,
+          content: `def main():\n    print("Hello, World!")\n\nif __name__ == '__main__':\n    main()\n`,
         },
       ];
     case 'TYPESCRIPT':
       return [
         {
           fileName: 'index.ts',
-          content: `console.log("Hello from ${projectName}!");\n`,
+          content: `console.log("Hello, World!");\n`,
         },
       ];
     case 'JAVASCRIPT':
       return [
         {
           fileName: 'index.js',
-          content: `console.log("Hello from ${projectName}!");\n`,
+          content: `console.log("Hello, World!");\n`,
         },
       ];
     default:
@@ -286,62 +282,7 @@ export function getBlankProject(
   }
 }
 
-export function getStarterProject(
-  language: ProgrammingLanguage,
-  projectName = 'SmartCodeApp',
-  packageName = 'ua.pnu.app'
-): CodeFile[] {
-  switch (language) {
-    case 'JAVA':
-      return [
-        {
-          fileName: 'Main.java',
-          content: `package ${packageName};\n\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("=== Project: ${projectName} ===");\n        System.out.println("Architecture & quality verification ready.");\n        \n        AppService service = new AppService();\n        service.process();\n    }\n}\n`,
-        },
-        {
-          fileName: 'AppService.java',
-          content: `package ${packageName};\n\npublic class AppService {\n    public void process() {\n        System.out.println("AppService running with high cohesion.");\n    }\n}\n`,
-        },
-        {
-          fileName: 'ItemRecord.java',
-          content: `package ${packageName};\n\n// Java 21 Record for immutable data encapsulation\npublic record ItemRecord(String id, String title, double price) {\n}\n`,
-        },
-      ];
-    case 'PYTHON':
-      return [
-        {
-          fileName: 'main.py',
-          content: `from app_service import AppService\n\ndef main():\n    print("=== Project: ${projectName} ===")    service = AppService()\n    service.run()\n\nif __name__ == '__main__':\n    main()\n`,
-        },
-        {
-          fileName: 'app_service.py',
-          content: `from dataclasses import dataclass\n\n@dataclass\nclass AppItem:\n    id: str\n    name: str\n\nclass AppService:\n    def __init__(self):\n        self.items = []\n\n    def run(self):\n        print("AppService initialized cleanly.")\n`,
-        },
-      ];
-    case 'TYPESCRIPT':
-      return [
-        {
-          fileName: 'index.ts',
-          content: `import { AppService } from './AppService';\n\nconsole.log("=== Project: ${projectName} ===");\nconst service = new AppService();\nservice.execute();\n`,
-        },
-        {
-          fileName: 'AppService.ts',
-          content: `export interface ServiceResult {\n    success: boolean;\n    timestamp: number;\n}\n\nexport class AppService {\n    public execute(): ServiceResult {\n        console.log("AppService executing with strong typing.");\n        return { success: true, timestamp: Date.now() };\n    }\n}\n`,
-        },
-      ];
-    case 'JAVASCRIPT':
-      return [
-        {
-          fileName: 'index.js',
-          content: `const { AppService } = require('./AppService');\n\nconsole.log("=== Project: ${projectName} ===");\nconst service = new AppService();\nservice.execute();\n`,
-        },
-        {
-          fileName: 'AppService.js',
-          content: `class AppService {\n    execute() {\n        console.log("AppService running cleanly.");\n        return true;\n    }\n}\n\nmodule.exports = { AppService };\n`,
-        },
-      ];
-    default:
-      return [];
-  }
+export function getStarterProject(language: ProgrammingLanguage): CodeFile[] {
+  return getBlankProject(language);
 }
 

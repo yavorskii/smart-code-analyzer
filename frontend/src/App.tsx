@@ -115,14 +115,6 @@ export default function App() {
     );
   };
 
-  const detectedPackage = React.useMemo(() => {
-    if (language !== 'JAVA') return '';
-    for (const f of files) {
-      const m = f.content.match(/^\s*package\s+([a-zA-Z0-9_.]+);/m);
-      if (m && m[1]) return m[1];
-    }
-    return 'ua.pnu.app';
-  }, [language, files]);
 
   const handleCreateFile = (newFile: CodeFile) => {
     setFiles((prev) => [...prev, newFile]);
@@ -541,13 +533,7 @@ export default function App() {
           </div>
 
           <div style={{ padding: '6px 8px', fontSize: '11px', color: '#868a91', borderBottom: '1px solid #2b2d30' }}>
-            {language === 'JAVA'
-              ? `src/main/java/${detectedPackage.replace(/\./g, '/')}`
-              : language === 'PYTHON'
-              ? 'src/app'
-              : language === 'TYPESCRIPT'
-              ? 'src/services'
-              : 'src/modules'}
+            src/
           </div>
 
           <div className="jb-file-tree">
@@ -1319,7 +1305,6 @@ export default function App() {
         isOpen={isNewFileDialogOpen}
         language={language}
         currentFiles={files}
-        defaultPackage={detectedPackage}
         onClose={() => setIsNewFileDialogOpen(false)}
         onCreate={handleCreateFile}
       />

@@ -6,12 +6,11 @@ interface NewFileDialogProps {
   isOpen: boolean;
   language: ProgrammingLanguage;
   currentFiles: CodeFile[];
-  defaultPackage?: string;
   onClose: () => void;
   onCreate: (file: CodeFile) => void;
 }
 
-type JavaType = 'CLASS' | 'RECORD' | 'INTERFACE' | 'ENUM' | 'ANNOTATION' | 'EXCEPTION' | 'MAIN';
+type JavaType = 'CLASS' | 'RECORD' | 'INTERFACE' | 'ENUM' | 'EXCEPTION' | 'MAIN';
 type PythonType = 'CLASS' | 'DATACLASS' | 'MODULE' | 'TEST';
 type TypeScriptType = 'CLASS' | 'INTERFACE' | 'TYPE' | 'ENUM' | 'TEST';
 type JavaScriptType = 'CLASS' | 'MODULE' | 'TEST';
@@ -20,13 +19,11 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
   isOpen,
   language,
   currentFiles,
-  defaultPackage = 'ua.pnu.app',
   onClose,
   onCreate,
 }) => {
   const [name, setName] = useState('');
   const [selectedType, setSelectedType] = useState<string>('CLASS');
-  const [packageName, setPackageName] = useState(defaultPackage);
   const [error, setError] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -35,21 +32,18 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
     if (isOpen) {
       setName('');
       setSelectedType(language === 'JAVA' ? 'CLASS' : language === 'PYTHON' ? 'CLASS' : 'CLASS');
-      setPackageName(defaultPackage);
       setError(null);
       setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
     }
-  }, [isOpen, language, defaultPackage]);
+  }, [isOpen, language]);
 
   if (!isOpen) return null;
 
   const sanitizeIdentifier = (raw: string) => {
     let cleaned = raw.trim();
-    // Strip extension if entered by user
     cleaned = cleaned.replace(/\.(java|py|ts|js|tsx|jsx)$/i, '');
-    // Replace hyphens or spaces with underscores or CamelCase
     cleaned = cleaned.replace(/[^a-zA-Z0-9_$]/g, '');
     return cleaned;
   };
@@ -82,61 +76,35 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
   };
 
   const generateContent = () => {
-    const identifier = cleanName || 'NewItem';
-    const pkg = packageName.trim() || 'ua.pnu.app';
+    const identifier = cleanName || 'Item';
 
     if (language === 'JAVA') {
-      const header = `package ${pkg};\n\n`;
       switch (selectedType as JavaType) {
         case 'RECORD':
-          return (
-            header +
-            `/**\n * Immutable record component.\n */\n` +
-            `public record ${identifier}(\n    String id,\n    String name,\n    double value\n) {\n}\n`
-          );
+          return `public record ${identifier}() {\n}\n`;
         case 'INTERFACE':
-          return (
-            header +
-            `public interface ${identifier} {\n    void process();\n    String getStatus();\n}\n`
-          );
+          return `public interface ${identifier} {\n}\n`;
         case 'ENUM':
-          return (
-            header +
-            `public enum ${identifier} {\n    ACTIVE,\n    INACTIVE,\n    PENDING,\n    ARCHIVED\n}\n`
-          );
-        case 'ANNOTATION':
-          return (
-            header +
-            `import java.lang.annotation.*;\n\n` +
-            `@Retention(RetentionPolicy.RUNTIME)\n` +
-            `@Target({ElementType.TYPE, ElementType.METHOD})\n` +
-            `public @interface ${identifier} {\n    String value() default "";\n}\n`
-          );
+          return `public enum ${identifier} {\n}\n`;
         case 'EXCEPTION':
           return (
-            header +
             `public class ${identifier} extends RuntimeException {\n` +
-            `    public ${identifier}(String message) {\n        super(message);\n    }\n\n` +
-            `    public ${identifier}(String message, Throwable cause) {\n        super(message, cause);\n    }\n}\n`
+            `    public ${identifier}(String message) {\n` +
+            `        super(message);\n` +
+            `    }\n` +
+            `}\n`
           );
         case 'MAIN':
           return (
-            header +
             `public class ${identifier} {\n` +
             `    public static void main(String[] args) {\n` +
-            `        System.out.println("Execution started in ${identifier}");\n` +
-            `    }\n}\n`
+            `        System.out.println("Hello, World!");\n` +
+            `    }\n` +
+            `}\n`
           );
         case 'CLASS':
         default:
-          return (
-            header +
-            `public class ${identifier} {\n` +
-            `    private String id;\n\n` +
-            `    public ${identifier}() {\n    }\n\n` +
-            `    public String getId() {\n        return id;\n    }\n` +
-            `    public void setId(String id) {\n        this.id = id;\n    }\n}\n`
-          );
+          return `public class ${identifier} {\n}\n`;
       }
     }
 
@@ -147,78 +115,45 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
             `from dataclasses import dataclass\n\n` +
             `@dataclass\n` +
             `class ${identifier}:\n` +
-            `    id: str\n` +
-            `    name: str\n` +
-            `    is_active: bool = True\n`
+            `    pass\n`
           );
         case 'TEST':
           return (
             `import pytest\n\n` +
-            `def test_${identifier.toLowerCase()}_initial_state():\n` +
-            `    assert True\n\n` +
-            `def test_${identifier.toLowerCase()}_calculation():\n` +
-            `    result = 40 + 2\n` +
-            `    assert result == 42\n`
+            `def test_example():\n` +
+            `    assert True\n`
           );
         case 'MODULE':
           return (
-            `def ${identifier.toLowerCase()}_task():\n` +
-            `    print("Task running")\n\n` +
+            `def main():\n` +
+            `    print("Hello, World!")\n\n` +
             `if __name__ == '__main__':\n` +
-            `    ${identifier.toLowerCase()}_task()\n`
+            `    main()\n`
           );
         case 'CLASS':
         default:
-          return (
-            `class ${identifier}:\n` +
-            `    def __init__(self, name: str = "${identifier}"):\n` +
-            `        self.name = name\n\n` +
-            `    def execute(self) -> str:\n` +
-            `        return f"Executing {self.name}"\n`
-          );
+          return `class ${identifier}:\n    pass\n`;
       }
     }
 
     if (language === 'TYPESCRIPT') {
       switch (selectedType as TypeScriptType) {
         case 'INTERFACE':
-          return (
-            `export interface ${identifier} {\n` +
-            `    id: string;\n` +
-            `    title: string;\n` +
-            `    createdAt: Date;\n}\n`
-          );
+          return `export interface ${identifier} {\n}\n`;
         case 'TYPE':
-          return (
-            `export type ${identifier} = {\n` +
-            `    id: string;\n` +
-            `    status: 'PENDING' | 'SUCCESS' | 'FAILED';\n` +
-            `    payload?: Record<string, unknown>;\n};\n`
-          );
+          return `export type ${identifier} = {\n};\n`;
         case 'ENUM':
-          return (
-            `export enum ${identifier} {\n` +
-            `    DEFAULT = 'DEFAULT',\n` +
-            `    ACTIVE = 'ACTIVE',\n` +
-            `    DISABLED = 'DISABLED',\n}\n`
-          );
+          return `export enum ${identifier} {\n}\n`;
         case 'TEST':
           return (
-            `import { describe, it } from 'node:test';\nimport assert from 'node:assert';\n\n` +
-            `describe('${identifier}', () => {\n` +
-            `    it('should initialize properly', () => {\n` +
-            `        assert.strictEqual(true, true);\n` +
-            `    });\n});\n`
+            `import { test } from 'node:test';\nimport assert from 'node:assert';\n\n` +
+            `test('example', () => {\n` +
+            `    assert.strictEqual(1, 1);\n` +
+            `});\n`
           );
         case 'CLASS':
         default:
-          return (
-            `export class ${identifier} {\n` +
-            `    constructor(private readonly name: string = '${identifier}') {}\n\n` +
-            `    public run(): string {\n` +
-            `        return \`Running \${this.name}\`;\n` +
-            `    }\n}\n`
-          );
+          return `export class ${identifier} {\n}\n`;
       }
     }
 
@@ -227,25 +162,20 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
       case 'TEST':
         return (
           `const { test } = require('node:test');\nconst assert = require('node:assert');\n\n` +
-          `test('${identifier} behavior', () => {\n` +
-          `    assert.strictEqual(1, 1);\n});\n`
+          `test('example', () => {\n` +
+          `    assert.strictEqual(1, 1);\n` +
+          `});\n`
         );
       case 'MODULE':
         return (
-          `function ${identifier.toLowerCase()}Handler(input) {\n` +
-          `    return input ? input.toUpperCase() : '';\n}\n\n` +
-          `module.exports = { ${identifier.toLowerCase()}Handler };\n`
+          `function execute() {\n}\n\n` +
+          `module.exports = { execute };\n`
         );
       case 'CLASS':
       default:
         return (
           `class ${identifier} {\n` +
-          `    constructor(name = '${identifier}') {\n` +
-          `        this.name = name;\n` +
-          `    }\n\n` +
-          `    execute() {\n` +
-          `        console.log("Executing " + this.name);\n` +
-          `    }\n}\n\n` +
+          `}\n\n` +
           `module.exports = ${identifier};\n`
         );
     }
@@ -254,7 +184,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
   const handleCreate = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!cleanName) {
-      setError('Будь ласка, вкажіть назву файлу / класу');
+      setError('Вкажіть назву файлу / класу');
       return;
     }
 
@@ -264,7 +194,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
     );
 
     if (alreadyExists) {
-      setError(`Файл з іменем "${finalFileName}" вже існує в проекті`);
+      setError(`Файл "${finalFileName}" вже існує в проєкті`);
       return;
     }
 
@@ -280,7 +210,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
     if (language === 'JAVA') {
       const types: { id: JavaType; label: string; badge: string; color: string }[] = [
         { id: 'CLASS', label: 'Class', badge: 'C', color: '#3574f0' },
-        { id: 'RECORD', label: 'Record (Java 21)', badge: 'R', color: '#59a869' },
+        { id: 'RECORD', label: 'Record', badge: 'R', color: '#59a869' },
         { id: 'INTERFACE', label: 'Interface', badge: 'I', color: '#2a8264' },
         { id: 'ENUM', label: 'Enum', badge: 'E', color: '#f5a623' },
         { id: 'EXCEPTION', label: 'Exception', badge: '!', color: '#f75464' },
@@ -333,11 +263,11 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
     }
 
     if (language === 'PYTHON') {
-      const types: { id: PythonType; label: string; badge: string; color: string }[] = [
-        { id: 'CLASS', label: 'Class', badge: 'C', color: '#3574f0' },
-        { id: 'DATACLASS', label: 'Dataclass', badge: 'D', color: '#59a869' },
-        { id: 'MODULE', label: 'Module / Script', badge: 'M', color: '#f5a623' },
-        { id: 'TEST', label: 'Pytest Test File', badge: '🧪', color: '#59a869' },
+      const types: { id: PythonType; label: string; badge: string }[] = [
+        { id: 'CLASS', label: 'Class', badge: 'C' },
+        { id: 'DATACLASS', label: 'Dataclass', badge: 'D' },
+        { id: 'MODULE', label: 'Module / Script', badge: 'M' },
+        { id: 'TEST', label: 'Pytest Test', badge: '🧪' },
       ];
 
       return (
@@ -374,7 +304,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
         { id: 'INTERFACE', label: 'Interface', badge: 'I' },
         { id: 'TYPE', label: 'Type Alias', badge: 'T' },
         { id: 'ENUM', label: 'Enum', badge: 'E' },
-        { id: 'TEST', label: 'node:test Suite', badge: '🧪' },
+        { id: 'TEST', label: 'node:test', badge: '🧪' },
       ];
 
       return (
@@ -409,7 +339,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
     const jsTypes: { id: JavaScriptType; label: string; badge: string }[] = [
       { id: 'CLASS', label: 'Class', badge: 'C' },
       { id: 'MODULE', label: 'Module Function', badge: 'M' },
-      { id: 'TEST', label: 'node:test Suite', badge: '🧪' },
+      { id: 'TEST', label: 'node:test', badge: '🧪' },
     ];
 
     return (
@@ -462,7 +392,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
     >
       <div
         style={{
-          width: '540px',
+          width: '500px',
           maxWidth: '100%',
           backgroundColor: '#1e1f22',
           border: '1px solid #393b40',
@@ -487,13 +417,13 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FileCode size={15} color="#3574f0" />
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#dfe1e5' }}>
-              New {language === 'JAVA' ? 'Java File / Type' : `${language} File`}
+              Новий {language === 'JAVA' ? 'файл / тип Java' : `файл ${language}`}
             </span>
           </div>
           <button
             onClick={onClose}
             style={{ color: '#9da0a8', padding: '2px', borderRadius: '4px' }}
-            title="Close (Esc)"
+            title="Закрити (Esc)"
           >
             <X size={15} />
           </button>
@@ -504,7 +434,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
           {/* Name Field */}
           <div>
             <label style={{ display: 'block', fontSize: '11px', color: '#9da0a8', marginBottom: '4px' }}>
-              Name / Identifier:
+              Назва файлу / ідентифікатор:
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <input
@@ -515,13 +445,13 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
                   setName(e.target.value);
                   setError(null);
                 }}
-                placeholder={language === 'JAVA' ? 'e.g. OrderRecord, PaymentService, RoleEnum' : 'e.g. UserService, config'}
+                placeholder={language === 'JAVA' ? 'наприклад: UserRecord, PaymentService, Role' : 'наприклад: UserService, config'}
                 style={{
                   flex: 1,
                   background: '#2b2d30',
                   border: '1px solid #393b40',
                   borderRadius: '4px',
-                  padding: '6px 10px',
+                  padding: '7px 10px',
                   color: '#dfe1e5',
                   fontSize: '12px',
                   outline: 'none',
@@ -533,35 +463,10 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
             </div>
           </div>
 
-          {/* Java Package Field */}
-          {language === 'JAVA' && (
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#9da0a8', marginBottom: '4px' }}>
-                Package:
-              </label>
-              <input
-                type="text"
-                value={packageName}
-                onChange={(e) => setPackageName(e.target.value)}
-                placeholder="e.g. ua.pnu.shop.service"
-                style={{
-                  width: '100%',
-                  background: '#2b2d30',
-                  border: '1px solid #393b40',
-                  borderRadius: '4px',
-                  padding: '6px 10px',
-                  color: '#dfe1e5',
-                  fontSize: '12px',
-                  outline: 'none',
-                }}
-              />
-            </div>
-          )}
-
           {/* Type Selector */}
           <div>
             <label style={{ display: 'block', fontSize: '11px', color: '#9da0a8', marginBottom: '4px' }}>
-              Kind / Type Template:
+              Тип шаблону:
             </label>
             {renderTypeSelector()}
           </div>
@@ -569,7 +474,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
           {/* Code Preview */}
           <div>
             <label style={{ display: 'block', fontSize: '11px', color: '#9da0a8', marginBottom: '4px' }}>
-              Generated Preview:
+              Попередній перегляд:
             </label>
             <pre
               style={{
@@ -577,10 +482,10 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
                 border: '1px solid #2b2d30',
                 borderRadius: '4px',
                 padding: '8px 10px',
-                color: '#9da0a8',
-                fontSize: '11px',
+                color: '#dfe1e5',
+                fontSize: '11.5px',
                 fontFamily: 'var(--font-mono, monospace)',
-                maxHeight: '120px',
+                maxHeight: '100px',
                 overflowY: 'auto',
                 whiteSpace: 'pre-wrap',
                 margin: 0,
@@ -610,7 +515,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
           )}
 
           {/* Actions */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
             <button
               type="button"
               onClick={onClose}
@@ -623,7 +528,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
                 fontSize: '12px',
               }}
             >
-              Cancel
+              Скасувати
             </button>
             <button
               type="submit"
@@ -641,7 +546,7 @@ export const NewFileDialog: React.FC<NewFileDialogProps> = ({
               }}
             >
               <Plus size={13} />
-              <span>Create File</span>
+              <span>Створити файл</span>
             </button>
           </div>
         </form>
